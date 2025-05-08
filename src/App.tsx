@@ -23,13 +23,9 @@ import PublicRoutes from "./utils/publicRoutes";
 import PrivateRoutes from "./utils/privateRoutes";
 import InstallButton from "./components/installbutton/installbutton";
 import ShipmentTable from "./pages/Shipments/ShipmentTable";
-import CreateShipment from "./pages/Shipments/CreateShipment/CreateShipment";
 import AddressBook from "./pages/Adresses/AdressTable";
-import CreateAddress from "./pages/Adresses/CreateAdress/CreateAdress";
 import PackageTable from "./pages/Packages/PackagesTable";
-import CreatePackage from "./pages/Packages/CreatePackage/CreatePackage";
 import Calculator from "./pages/Calculator/calculator";
-import ShipmentReceived from "./pages/Shipments/ShipmentRecievedTable";
 
 export default function App() {
   return (
@@ -62,12 +58,8 @@ export default function App() {
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/blank" element={<Blank />} />
             <Route path="/shipments" element={<ShipmentTable />} />
-            <Route path="/shipment-received" element={<ShipmentReceived />} />
-            <Route path="/create-shipment" element={<CreateShipment />} />
             <Route path="/addresses" element={<AddressBook />} />
-            <Route path="/createaddress" element={<CreateAddress />} />
             <Route path="/packages" element={<PackageTable />} />
-            <Route path="/create-package" element={<CreatePackage />} />
             <Route path="/calculator" element={<Calculator />} />
 
 
