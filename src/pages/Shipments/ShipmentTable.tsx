@@ -66,11 +66,9 @@ export default function ShipmentTable() {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('decodedToken') || '{}');
-        const userId = user?.id;
-        if (!token || !userId) return;
+        if (!token) return;
 
-        const url = `${apiUrl}/shipments/shipments/user/${userId}`;
+        const url = `${apiUrl}/shipments/shipments/all`;
         const response = await axios.get<Shipment[]>(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -110,7 +108,7 @@ export default function ShipmentTable() {
         {loading ? (
           <div className="text-center text-gray-500 dark:text-white/70 p-8">Cargando envíos...</div>
         ) : shipments.length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-white/70 p-8">No tienes envíos enviados aún.</div>
+          <div className="text-center text-gray-500 dark:text-white/70 p-8">No hay envíos registrados aún.</div>
         ) : (
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
@@ -130,7 +128,13 @@ export default function ShipmentTable() {
                   <TableCell className="text-gray-700 dark:text-white">{s.shipment_code}</TableCell>
                   <TableCell className="text-gray-700 dark:text-white">{formatDate(s.shipment_date)}</TableCell>
                   <TableCell>
-                    <Badge size="sm" color={s.shipment_status === 'Active' ? 'success' : s.shipment_status === 'Pending' ? 'warning' : 'error'}>
+                    <Badge size="sm" color={
+                      s.shipment_status === 'Active'
+                        ? 'success'
+                        : s.shipment_status === 'Pending'
+                        ? 'warning'
+                        : 'error'
+                    }>
                       {s.shipment_status}
                     </Badge>
                   </TableCell>
@@ -150,14 +154,20 @@ export default function ShipmentTable() {
         {loading ? (
           <div className="text-center text-gray-500 dark:text-white/70">Cargando envíos...</div>
         ) : shipments.length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-white/70">No tienes envíos enviados aún.</div>
+          <div className="text-center text-gray-500 dark:text-white/70">No hay envíos registrados aún.</div>
         ) : (
           shipments.map((s) => (
             <div key={s.id} className="border rounded-lg p-4 text-sm bg-white dark:bg-white/5 border-gray-200 dark:border-white/[0.05] space-y-1">
               <p className="text-gray-700 dark:text-white"><strong>Código:</strong> {s.shipment_code}</p>
               <p className="text-gray-700 dark:text-white"><strong>Fecha:</strong> {formatDate(s.shipment_date)}</p>
               <p className="text-gray-700 dark:text-white"><strong>Estado:</strong>{' '}
-                <Badge size="sm" color={s.shipment_status === 'Active' ? 'success' : s.shipment_status === 'Pending' ? 'warning' : 'error'}>
+                <Badge size="sm" color={
+                  s.shipment_status === 'Active'
+                    ? 'success'
+                    : s.shipment_status === 'Pending'
+                    ? 'warning'
+                    : 'error'
+                }>
                   {s.shipment_status}
                 </Badge>
               </p>
