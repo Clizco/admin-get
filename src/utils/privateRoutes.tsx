@@ -4,7 +4,23 @@ import { getToken } from "./common";
 
 const PrivateRoutes = () => {
   const token = getToken();
-  return token ? <Outlet /> : <Navigate to="/signin" replace />;
+  const userData = localStorage.getItem("decodedToken");
+
+  if (!token || !userData) {
+    return <Navigate to="/signin" replace />;
+  }
+
+  try {
+    const user = JSON.parse(userData);
+    if (user.role_id === 1) {
+      return <Outlet />;
+    } else {
+      return <Navigate to="/unauthorized" replace />;
+    }
+  } catch (error) {
+    console.error("Error al parsear los datos del usuario:", error);
+    return <Navigate to="/signin" replace />;
+  }
 };
 
 export default PrivateRoutes;

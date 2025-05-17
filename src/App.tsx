@@ -26,7 +26,9 @@ import ShipmentTable from "./pages/Shipments/ShipmentTable";
 import AddressBook from "./pages/Adresses/AdressTable";
 import PackageTable from "./pages/Packages/PackagesTable";
 import Calculator from "./pages/Calculator/calculator";
-
+import DriverTable from "./pages/Drivers/DriversTable";
+import UserTable from "./pages/Users/UsersTable";
+import UserDetail from "./pages/Users/UserDetail";
 export default function App() {
   return (
     <Router>
@@ -61,6 +63,11 @@ export default function App() {
             <Route path="/addresses" element={<AddressBook />} />
             <Route path="/packages" element={<PackageTable />} />
             <Route path="/calculator" element={<Calculator />} />
+            <Route path="/drivers" element={<DriverTable />} />
+            <Route path="/users" element={<UserTable />} />
+            <Route path="/users/:id" element={<UserDetail />} />
+            <Route path="/unauthorized" element={<div>No tienes permiso para acceder</div>} />
+
 
 
             {/* Rutas anidadas */}

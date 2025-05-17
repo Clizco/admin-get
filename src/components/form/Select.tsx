@@ -7,7 +7,9 @@ interface Option {
 
 interface SelectProps {
   options: Option[];
+  label?: string; // Add the label prop
   placeholder?: string;
+  value: string; // Add the value prop to the interface
   onChange: (value: string) => void;
   className?: string;
   defaultValue?: string;
@@ -15,7 +17,7 @@ interface SelectProps {
 
 const Select: React.FC<SelectProps> = ({
   options,
-  placeholder = "Select an option",
+  placeholder = "Elige una opción",
   onChange,
   className = "",
   defaultValue = "",

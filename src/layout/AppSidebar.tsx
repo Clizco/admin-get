@@ -37,8 +37,13 @@ const navItems: NavItem[] = [
   },
   {
     icon: <TableIcon />,
-    name: "Direcciones",
-    path: "/addresses",
+    name: "Conductores",
+    path: "/drivers",
+  },
+  {
+    icon: <TableIcon />,
+    name: "Usuarios",
+    path: "/users",
   },
   {
     icon: <BoltIcon />,
