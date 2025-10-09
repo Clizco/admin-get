@@ -29,6 +29,7 @@ import Calculator from "./pages/Calculator/calculator";
 import DriverTable from "./pages/Drivers/DriversTable";
 import UserTable from "./pages/Users/UsersTable";
 import UserDetail from "./pages/Users/UserDetail";
+import UpdatePackage from "./pages/Packages/UpdatePackage/UpdatePackage";
 export default function App() {
   return (
     <Router>
@@ -66,6 +67,9 @@ export default function App() {
             <Route path="/drivers" element={<DriverTable />} />
             <Route path="/users" element={<UserTable />} />
             <Route path="/users/:id" element={<UserDetail />} />
+            <Route path="/packages/edit/:id" element={<UpdatePackage />} />
+
+            {/* Rutas de error */}
             <Route path="/unauthorized" element={<div>No tienes permiso para acceder</div>} />
 
 

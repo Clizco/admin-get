@@ -108,6 +108,7 @@ export default function UserTable() {
             { value: '1', label: 'Administrador' },
             { value: '2', label: 'Usuario' },
             { value: '3', label: 'Conductor' },
+            { value: '4', label: 'Afiliado' }
           ]}
         />
       </div>
@@ -142,7 +143,13 @@ export default function UserTable() {
                       user.role_id === 1 ? 'success' :
                       user.role_id === 2 ? 'warning' : 'error'
                     }>
-                      {user.role_id === 1 ? 'Admin' : user.role_id === 2 ? 'Usuario' : 'Conductor'}
+                      {user.role_id === 1
+                        ? 'Admin'
+                        : user.role_id === 2  
+                        ? 'Usuario'
+                        : user.role_id === 3
+                        ? 'Conductor'
+                        : 'Afiliado'}
                     </Badge>
                   </TableCell>
                   <TableCell>

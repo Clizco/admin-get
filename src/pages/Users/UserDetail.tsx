@@ -68,6 +68,19 @@ export default function UserDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!user) return;
+    if (!confirm('¿Estás seguro de que quieres eliminar este usuario?')) return;
+    try {
+      await axios.delete(`${apiUrl}/users/users/delete/${id}`);
+      toast.success('Usuario eliminado correctamente');
+      navigate('/users');
+    } catch (error) {
+      console.error('Error al eliminar usuario:', error);
+      toast.error('No se pudo eliminar el usuario');
+    }
+  }
+  
   if (loading || !user) {
     return <div className="p-6 text-gray-500 dark:text-white/70">Cargando datos del usuario...</div>;
   }
@@ -128,6 +141,7 @@ export default function UserDetail() {
             { value: '3', label: 'Conductor' },
           ]}
         />
+        
 
         <div className="pt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => navigate('/users')}>
@@ -136,6 +150,10 @@ export default function UserDetail() {
           <Button onClick={handleSave}>
             Guardar
           </Button>
+          <Button variant="outline" onClick={handleDelete}>
+            Eliminar
+          </Button>
+
         </div>
       </div>
     </motion.div>

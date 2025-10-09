@@ -23,7 +23,7 @@ interface Product {
 interface Package {
   id: number;
   package_tracking_id: string;
-  package_status: string;
+  status_name: string;
   created_at: string;
   invoice_path?: string;
   products: Product[];
@@ -46,28 +46,56 @@ const formatDate = (dateString: string) => {
   });
 };
 
-export default function PackageTable() {
+const getStatusColor = (status: string): 'success' | 'warning' | 'error' | undefined => {
+  switch (status.toUpperCase()) {
+    case 'ENTREGADO':
+      return 'success';
+    case 'EN TRANSITO A MIAMI':
+    case 'EN TRANSITO A PANAMA':
+      return 'warning';
+    case 'POR CONFIRMAR':
+      return 'error';
+    default:
+      return undefined;
+  }
+};
+
+export default function PackageTableAdmin() {
   const [packages, setPackages] = useState<Package[]>([]);
   const [filter, setFilter] = useState('');
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
+  const [search, setSearch] = useState<string>('');
   const navigate = useNavigate();
 
   const fetchPackages = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get<Package[]>(
-        `${apiUrl}/packages/packages/all`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await axios.get<Package[]>(`${apiUrl}/packages/packages/all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setPackages(response.data);
     } catch (error) {
       console.error('Error fetching package data:', error);
     }
   };
 
+  const fetchStatuses = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/packages/statuses`);
+      setStatuses(['Todos', ...response.data.map((s: any) => s.status_name)]);
+    } catch (err) {
+      console.error('Error obteniendo estados:', err);
+    }
+  };
+
+  const handleEdit = (packageId: number) => {
+    navigate(`/packages/edit/${packageId}`);
+  };
+
   useEffect(() => {
     fetchPackages();
+    fetchStatuses();
   }, []);
 
   const handleDownloadInvoice = (invoicePath: string) => {
@@ -75,25 +103,63 @@ export default function PackageTable() {
     window.open(fullUrl, '_blank');
   };
 
-  const filteredPackages = packages.filter(pkg =>
-    pkg.user_fullname.toLowerCase().includes(filter.toLowerCase()) ||
-    pkg.user_email.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filteredPackages = packages.filter((pkg) => {
+    const matchesStatus = selectedStatus === 'Todos' || pkg.status_name === selectedStatus;
+    const matchesSearch = pkg.package_tracking_id.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter =
+      pkg.user_fullname.toLowerCase().includes(filter.toLowerCase()) ||
+      pkg.user_email.toLowerCase().includes(filter.toLowerCase()) ||
+      pkg.user_prefix.toLowerCase().includes(filter.toLowerCase());
+
+    return matchesStatus && matchesSearch && matchesFilter;
+  });
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      {/* Filtro */}
-      <div className="p-4">
-        <input
-          type="text"
-          placeholder="Filtrar por cliente o email..."
-          value={filter}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setFilter(e.target.value)}
-          className="w-full p-2 border rounded-md dark:bg-gray-900 dark:border-white/[0.1] dark:text-white"
-        />
+      <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Filtrar por cliente o email
+          </label>
+          <input
+            type="text"
+            placeholder="Ej: Juan Pérez"
+            value={filter}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setFilter(e.target.value)}
+            className="w-full p-2 border rounded-md dark:bg-gray-900 dark:border-white/[0.1] dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Buscar por Tracking ID
+          </label>
+          <input
+            type="text"
+            placeholder="Ej: 123ABC456"
+            className="w-full p-2 border rounded-md dark:bg-white/[0.02] dark:text-white"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Filtrar por estado
+          </label>
+          <select
+            className="w-full p-2 border rounded-md dark:bg-white/[0.02] dark:text-white"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Desktop table */}
+      {/* Desktop Table */}
       <div className="hidden md:block max-w-full overflow-x-auto">
         <Table>
           <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
@@ -104,24 +170,16 @@ export default function PackageTable() {
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Factura</TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Productos</TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Cliente</TableCell>
+              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Acciones</TableCell>
             </TableRow>
           </TableHeader>
-
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {filteredPackages.map((pkg) => (
               <TableRow key={pkg.id}>
                 <TableCell className="px-5 py-3 text-start text-sm text-gray-500 dark:text-gray-300">{formatDate(pkg.created_at)}</TableCell>
                 <TableCell className="px-5 py-3 text-start text-blue-600 dark:text-blue-400 font-medium">{pkg.package_tracking_id}</TableCell>
                 <TableCell className="px-5 py-3 text-start text-sm text-gray-500 dark:text-gray-300">
-                  <Badge
-                    size="sm"
-                    color={
-                      pkg.package_status === 'Active' ? 'success' :
-                      pkg.package_status === 'Pending' ? 'warning' : 'error'
-                    }
-                  >
-                    {pkg.package_status}
-                  </Badge>
+                  <Badge size="sm" color={getStatusColor(pkg.status_name)}>{pkg.status_name}</Badge>
                 </TableCell>
                 <TableCell className="px-5 py-3 text-start">
                   {pkg.invoice_path ? (
@@ -162,23 +220,28 @@ export default function PackageTable() {
                   <div className="text-xs">{pkg.user_email}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">{pkg.user_prefix}</div>
                 </TableCell>
+                <TableCell className="px-5 py-3 text-start">
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>Actualizar</Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
 
-      {/* Mobile cards */}
+      {/* Mobile Cards */}
       <div className="block md:hidden p-4 space-y-4">
         {filteredPackages.map((pkg) => (
           <div key={pkg.id} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm">
             <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Fecha:</strong> {formatDate(pkg.created_at)}</p>
             <p className="text-sm text-blue-600 dark:text-blue-400 font-medium"><strong>Tracking:</strong> {pkg.package_tracking_id}</p>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              <strong>Estado:</strong> <Badge size="sm" color={pkg.package_status === 'Active' ? 'success' : pkg.package_status === 'Pending' ? 'warning' : 'error'}>{pkg.package_status}</Badge>
+              <strong>Estado:</strong>{' '}
+              <Badge size="sm" color={getStatusColor(pkg.status_name)}>{pkg.status_name}</Badge>
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-              <strong>Factura:</strong> {pkg.invoice_path ? (
+              <strong>Factura:</strong>{' '}
+              {pkg.invoice_path ? (
                 <Button size="sm" variant="outline" onClick={() => handleDownloadInvoice(pkg.invoice_path!)}>Descargar</Button>
               ) : <span className="text-gray-400">Sin factura</span>}
             </p>
@@ -196,6 +259,12 @@ export default function PackageTable() {
               <p><strong>Cliente:</strong> <button onClick={() => navigate(`/users/${pkg.user_id}`)} className="text-blue-600 hover:underline dark:text-blue-400">{pkg.user_fullname}</button></p>
               <p><strong>Email:</strong> {pkg.user_email}</p>
               <p><strong>Prefix:</strong> {pkg.user_prefix}</p>
+              <div className="mt-2">
+                <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>
+                  Actualizar
+                </Button>
+              </div>
+
             </div>
           </div>
         ))}
