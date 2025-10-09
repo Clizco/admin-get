@@ -31,8 +31,7 @@ export default function SelectInputs() {
             options={options}
             placeholder="Select Option"
             onChange={handleSelectChange}
-            className="dark:bg-dark-900"
-          />
+            className="dark:bg-dark-900" value={""}          />
         </div>
         <div>
           <MultiSelect

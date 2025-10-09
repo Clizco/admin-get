@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Option {
   value: string;
@@ -7,9 +7,9 @@ interface Option {
 
 interface SelectProps {
   options: Option[];
-  label?: string; // Add the label prop
+  label?: string;
   placeholder?: string;
-  value: string; // Add the value prop to the interface
+  value?: string;                 // ⬅ opcional
   onChange: (value: string) => void;
   className?: string;
   defaultValue?: string;
@@ -18,38 +18,46 @@ interface SelectProps {
 const Select: React.FC<SelectProps> = ({
   options,
   placeholder = "Elige una opción",
+  value,                          // ⬅ ahora lo recibimos
   onChange,
   className = "",
   defaultValue = "",
 }) => {
-  // Manage the selected value
-  const [selectedValue, setSelectedValue] = useState<string>(defaultValue);
+  // estado interno solo si NO es controlado
+  const [internal, setInternal] = useState<string>(defaultValue);
+
+  // si el padre pasa `value`, sincronizamos visualmente cuando cambie
+  useEffect(() => {
+    if (value !== undefined) {
+      setInternal(value);
+    }
+  }, [value]);
+
+  const current = value !== undefined ? value : internal;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelectedValue(value);
-    onChange(value); // Trigger parent handler
+    const v = e.target.value;
+    if (value === undefined) setInternal(v); // no controlado
+    onChange(v);                              // notifica al padre
   };
 
   return (
     <select
       className={`h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-11 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 ${
-        selectedValue
-          ? "text-gray-800 dark:text-white/90"
-          : "text-gray-400 dark:text-gray-400"
+        current ? "text-gray-800 dark:text-white/90" : "text-gray-400 dark:text-gray-400"
       } ${className}`}
-      value={selectedValue}
+      value={current}
       onChange={handleChange}
     >
-      {/* Placeholder option */}
+      {/* Placeholder */}
       <option
         value=""
-        disabled
+        disabled={!!current}  // deshabilita solo si hay algo seleccionado
         className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
       >
         {placeholder}
       </option>
-      {/* Map over options */}
+
       {options.map((option) => (
         <option
           key={option.value}
