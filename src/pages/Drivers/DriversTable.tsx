@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ChangeEvent } from 'react';
 import axios from 'axios';
 import {
   Table,
@@ -8,6 +8,7 @@ import {
   TableRow,
 } from '../../components/ui/table';
 import Button from '../../components/ui/button/Button';
+import Select from '../../components/form/Select';
 
 interface Driver {
   id: number;
@@ -32,6 +33,11 @@ export default function DriverTable() {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [fade, setFade] = useState(false);
 
+  // filtros
+  const [searchText, setSearchText] = useState<string>('');
+  const [selectedProvince, setSelectedProvince] = useState<string>('Todas');
+  const [selectedDate] = useState<string>(''); // yyyy-mm-dd (guardado por si luego lo usas)
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -54,35 +60,161 @@ export default function DriverTable() {
   const getProvinceName = (id: number) =>
     provinces.find((p) => p.id === id)?.province_name || 'Desconocido';
 
-  const handleDelete = (driverId: number) => {
-    console.log(`Eliminar conductor con ID: ${driverId}`);
+  const handleDelete = async (driverId: number) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este conductor?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${apiUrl}/drivers/drivers/delete/${driverId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDrivers((prev) => prev.filter((driver) => driver.id !== driverId));
+    } catch (error) {
+      console.error('Error deleting driver:', error);
+    }
   };
 
+  const handleEdit = (driverId: number) => {
+    console.log(`Editar conductor con ID: ${driverId}`);
+    // Ejemplo si luego quieres ruta:
+    // navigate(`/drivers/edit/${driverId}`)
+  };
+
+  // aplicar filtros en memoria
+  const filteredDrivers = drivers.filter((driver) => {
+    const matchesSearch =
+      driver.driver_name.toLowerCase().includes(searchText.toLowerCase()) ||
+      driver.driver_email.toLowerCase().includes(searchText.toLowerCase()) ||
+      driver.driver_phonenumber.toLowerCase().includes(searchText.toLowerCase());
+
+    const matchesProvince =
+      selectedProvince === 'Todas' ||
+      getProvinceName(driver.driver_province) === selectedProvince;
+
+    const matchesDate =
+      !selectedDate ||
+      new Date(driver.created_at).toISOString().slice(0, 10) === selectedDate;
+
+    return matchesSearch && matchesProvince && matchesDate;
+  });
+
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      {/* Escritorio */}
-      <div className={`hidden md:block max-w-full overflow-x-auto p-4 transition-opacity duration-500 ${fade ? 'opacity-100' : 'opacity-0'}`}>
-        {drivers.length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-white/70 p-8">No hay conductores registrados.</div>
+    <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+      {/* FILTROS / BUSCADORES */}
+      <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Buscar por nombre / email / teléfono */}
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Buscar conductor
+          </label>
+          <input
+            type="text"
+            placeholder="Ej: Carlos, +507..., correo..."
+            value={searchText}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setSearchText(e.target.value)
+            }
+            className="w-full p-2 border rounded-md dark:bg-gray-900 dark:border-white/[0.1] dark:text-white"
+          />
+        </div>
+
+        {/* Filtrar por provincia */}
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Provincia
+          </label>
+          <Select
+            className="w-full p-2 border rounded-md dark:bg-white/[0.02] dark:text-white"
+            value={selectedProvince}
+            onChange={(value: string) => setSelectedProvince(value)}
+            options={[
+              { value: 'Todas', label: 'Todas' },
+              ...provinces.map((prov) => ({
+                value: prov.province_name,
+                label: prov.province_name,
+              })),
+            ]}
+          />
+        </div>
+
+        {/* Slot libre para una acción futura (ej: botón agregar conductor, fecha, etc.) */}
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+            &nbsp;
+          </label>
+          <div className="text-gray-500 text-sm dark:text-white/40">
+            {/* Aquí puedes poner un datepicker o un botón "Agregar Conductor" */}
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP TABLE */}
+      <div
+        className={`hidden md:block max-w-full overflow-x-auto p-4 transition-opacity duration-500 ${
+          fade ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {filteredDrivers.length === 0 ? (
+          <div className="text-center text-gray-500 dark:text-white/70 p-8">
+            No hay conductores registrados.
+          </div>
         ) : (
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Nombre</TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Teléfono</TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Email</TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Provincia</TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Fecha de registro</TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Acción</TableCell>
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
+                  Nombre
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
+                  Teléfono
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
+                  Email
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
+                  Provincia
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
+                  Fecha de registro
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
+                  Acción
+                </TableCell>
               </TableRow>
             </TableHeader>
+
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-              {drivers.map((driver) => (
+              {filteredDrivers.map((driver) => (
                 <TableRow key={driver.id}>
-                  <TableCell className="text-gray-700 dark:text-white">{driver.driver_name}</TableCell>
-                  <TableCell className="text-gray-700 dark:text-white">{driver.driver_phonenumber}</TableCell>
-                  <TableCell className="text-gray-700 dark:text-white">{driver.driver_email}</TableCell>
-                  <TableCell className="text-gray-700 dark:text-white">{getProvinceName(driver.driver_province)}</TableCell>
+                  <TableCell className="text-gray-700 dark:text-white">
+                    {driver.driver_name}
+                  </TableCell>
+                  <TableCell className="text-gray-700 dark:text-white">
+                    {driver.driver_phonenumber}
+                  </TableCell>
+                  <TableCell className="text-gray-700 dark:text-white">
+                    {driver.driver_email}
+                  </TableCell>
+                  <TableCell className="text-gray-700 dark:text-white">
+                    {getProvinceName(driver.driver_province)}
+                  </TableCell>
                   <TableCell className="text-gray-700 dark:text-white">
                     {new Date(driver.created_at).toLocaleDateString('es-ES', {
                       day: '2-digit',
@@ -91,9 +223,22 @@ export default function DriverTable() {
                     })}
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="primary" onClick={() => handleDelete(driver.id)}>
-                      Eliminar
-                    </Button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(driver.id)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(driver.id)}
+                      >
+                        Eliminar
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -102,25 +247,59 @@ export default function DriverTable() {
         )}
       </div>
 
-      {/* Móvil */}
-      <div className={`block md:hidden p-4 space-y-4 transition-opacity duration-500 ${fade ? 'opacity-100' : 'opacity-0'}`}>
-        {drivers.length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-white/70">No hay conductores registrados.</div>
+      {/* MOBILE CARDS */}
+      <div
+        className={`block md:hidden p-4 space-y-4 transition-opacity duration-500 ${
+          fade ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {filteredDrivers.length === 0 ? (
+          <div className="text-center text-gray-500 dark:text-white/70">
+            No hay conductores registrados.
+          </div>
         ) : (
-          drivers.map((driver) => (
-            <div key={driver.id} className="border rounded-lg p-4 text-sm bg-white dark:bg-white/[0.05] border-gray-200 dark:border-white/[0.05] space-y-1">
-              <p className="text-gray-700 dark:text-white"><strong>Nombre:</strong> {driver.driver_name}</p>
-              <p className="text-gray-700 dark:text-white"><strong>Teléfono:</strong> {driver.driver_phonenumber}</p>
-              <p className="text-gray-700 dark:text-white"><strong>Email:</strong> {driver.driver_email}</p>
-              <p className="text-gray-700 dark:text-white"><strong>Provincia:</strong> {getProvinceName(driver.driver_province)}</p>
-              <p className="text-gray-700 dark:text-white"><strong>Fecha:</strong> {new Date(driver.created_at).toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })}</p>
-              <Button size="sm" variant="primary" onClick={() => handleDelete(driver.id)}>
-                Eliminar
-              </Button>
+          filteredDrivers.map((driver) => (
+            <div
+              key={driver.id}
+              className="border rounded-lg p-4 text-sm bg-white dark:bg-white/[0.05] border-gray-200 dark:border-white/[0.05] space-y-1"
+            >
+              <p className="text-gray-700 dark:text-white">
+                <strong>Nombre:</strong> {driver.driver_name}
+              </p>
+              <p className="text-gray-700 dark:text-white">
+                <strong>Teléfono:</strong> {driver.driver_phonenumber}
+              </p>
+              <p className="text-gray-700 dark:text-white">
+                <strong>Email:</strong> {driver.driver_email}
+              </p>
+              <p className="text-gray-700 dark:text-white">
+                <strong>Provincia:</strong> {getProvinceName(driver.driver_province)}
+              </p>
+              <p className="text-gray-700 dark:text-white">
+                <strong>Fecha:</strong>{' '}
+                {new Date(driver.created_at).toLocaleDateString('es-ES', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })}
+              </p>
+
+              <div className="pt-2 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleEdit(driver.id)}
+                >
+                  Editar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDelete(driver.id)}
+                >
+                  Eliminar
+                </Button>
+              </div>
             </div>
           ))
         )}

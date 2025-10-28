@@ -10,6 +10,8 @@ import {
 import Button from '../../components/ui/button/Button';
 import Badge from '../../components/ui/badge/Badge';
 import { useNavigate } from 'react-router-dom';
+import { HiPlus, HiTrash } from 'react-icons/hi';
+import Select from '../../components/form/Select';
 
 interface Product {
   id: number;
@@ -25,7 +27,6 @@ interface Package {
   package_tracking_id: string;
   status_name: string;
   created_at: string;
-  invoice_path?: string;
   products: Product[];
   user_id: number;
   user_firstname: string;
@@ -46,7 +47,9 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const getStatusColor = (status: string): 'success' | 'warning' | 'error' | undefined => {
+const getStatusColor = (
+  status: string
+): 'success' | 'warning' | 'error' | undefined => {
   switch (status.toUpperCase()) {
     case 'ENTREGADO':
       return 'success';
@@ -93,15 +96,28 @@ export default function PackageTableAdmin() {
     navigate(`/packages/edit/${packageId}`);
   };
 
+  const handleDelete = async (packageId: number) => {
+    const confirmed = window.confirm('¿Estás seguro de que quieres eliminar este paquete?');
+    if (!confirmed) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${apiUrl}/packages/packages/delete/${packageId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Actualiza lista tras eliminar
+      setPackages((prev) => prev.filter((pkg) => pkg.id !== packageId));
+    } catch (error) {
+      console.error('Error eliminando paquete:', error);
+      alert('Ocurrió un error al eliminar el paquete.');
+    }
+  };
+
   useEffect(() => {
     fetchPackages();
     fetchStatuses();
   }, []);
-
-  const handleDownloadInvoice = (invoicePath: string) => {
-    const fullUrl = `${apiUrl}${invoicePath}`;
-    window.open(fullUrl, '_blank');
-  };
 
   const filteredPackages = packages.filter((pkg) => {
     const matchesStatus = selectedStatus === 'Todos' || pkg.status_name === selectedStatus;
@@ -115,7 +131,8 @@ export default function PackageTableAdmin() {
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+    <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+      {/* Filtros */}
       <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -145,17 +162,12 @@ export default function PackageTableAdmin() {
           <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
             Filtrar por estado
           </label>
-          <select
+          <Select
             className="w-full p-2 border rounded-md dark:bg-white/[0.02] dark:text-white"
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-          >
-            {statuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setSelectedStatus(value)}
+            options={statuses.map((status) => ({ value: status, label: status }))}
+          />
         </div>
       </div>
 
@@ -167,61 +179,42 @@ export default function PackageTableAdmin() {
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Creado</TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Tracking</TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Estado</TableCell>
-              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Factura</TableCell>
-              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Productos</TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Cliente</TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Acciones</TableCell>
             </TableRow>
           </TableHeader>
+
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {filteredPackages.map((pkg) => (
               <TableRow key={pkg.id}>
-                <TableCell className="px-5 py-3 text-start text-sm text-gray-500 dark:text-gray-300">{formatDate(pkg.created_at)}</TableCell>
-                <TableCell className="px-5 py-3 text-start text-blue-600 dark:text-blue-400 font-medium">{pkg.package_tracking_id}</TableCell>
-                <TableCell className="px-5 py-3 text-start text-sm text-gray-500 dark:text-gray-300">
+                <TableCell className="px-5 py-3 text-sm text-gray-500 dark:text-gray-300">{formatDate(pkg.created_at)}</TableCell>
+                <TableCell className="px-5 py-3 text-blue-600 dark:text-blue-400 font-medium">{pkg.package_tracking_id}</TableCell>
+                <TableCell className="px-5 py-3 text-sm text-gray-500 dark:text-gray-300">
                   <Badge size="sm" color={getStatusColor(pkg.status_name)}>{pkg.status_name}</Badge>
                 </TableCell>
-                <TableCell className="px-5 py-3 text-start">
-                  {pkg.invoice_path ? (
-                    <Button size="sm" variant="outline" onClick={() => handleDownloadInvoice(pkg.invoice_path!)}>Descargar</Button>
-                  ) : (
-                    <span className="text-gray-400 text-sm">Sin factura</span>
-                  )}
-                </TableCell>
-                <TableCell className="px-5 py-3 text-start text-sm text-gray-500 dark:text-gray-300">
-                  <table className="w-full text-sm text-left border-collapse border border-gray-300 dark:border-white/[0.1]">
-                    <thead>
-                      <tr className="bg-gray-100 dark:bg-white/[0.05]">
-                        <th className="px-2 py-1 border dark:border-white/[0.1]">Peso</th>
-                        <th className="px-2 py-1 border dark:border-white/[0.1]">Descripción</th>
-                        <th className="px-2 py-1 border dark:border-white/[0.1]">Valor</th>
-                        <th className="px-2 py-1 border dark:border-white/[0.1]">Tienda</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pkg.products.map((product, index) => (
-                        <tr key={index}>
-                          <td className="px-2 py-1 border dark:border-white/[0.1]">{product.product_weight} {product.product_unit}</td>
-                          <td className="px-2 py-1 border dark:border-white/[0.1]">{product.product_description}</td>
-                          <td className="px-2 py-1 border dark:border-white/[0.1]">${parseFloat(product.product_value).toFixed(2)}</td>
-                          <td className="px-2 py-1 border dark:border-white/[0.1]">{product.product_store}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-start text-sm text-gray-700 dark:text-gray-200">
+                <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-gray-200">
                   <button
                     onClick={() => navigate(`/users/${pkg.user_id}`)}
                     className="text-blue-600 hover:underline dark:text-blue-400"
                   >
                     {pkg.user_fullname}
                   </button>
-                  <div className="text-xs">{pkg.user_email}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{pkg.user_prefix}</div>
                 </TableCell>
+
                 <TableCell className="px-5 py-3 text-start">
-                  <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>Actualizar</Button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>
+                      Actualizar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(pkg.id)}
+                      className="flex items-center gap-1"
+                    >
+                      <HiTrash className="w-4 h-4" /> Eliminar
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -239,36 +232,35 @@ export default function PackageTableAdmin() {
               <strong>Estado:</strong>{' '}
               <Badge size="sm" color={getStatusColor(pkg.status_name)}>{pkg.status_name}</Badge>
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-              <strong>Factura:</strong>{' '}
-              {pkg.invoice_path ? (
-                <Button size="sm" variant="outline" onClick={() => handleDownloadInvoice(pkg.invoice_path!)}>Descargar</Button>
-              ) : <span className="text-gray-400">Sin factura</span>}
+            <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Cliente:</strong>{' '}
+              <button onClick={() => navigate(`/users/${pkg.user_id}`)} className="text-blue-600 hover:underline dark:text-blue-400">
+                {pkg.user_fullname}
+              </button>
             </p>
-            <div className="space-y-2">
-              {pkg.products.map((product, idx) => (
-                <div key={idx} className="border border-gray-200 dark:border-white/[0.1] p-2 rounded-md text-sm text-gray-800 dark:text-gray-100">
-                  <p><strong>Peso:</strong> {product.product_weight} {product.product_unit}</p>
-                  <p><strong>Descripción:</strong> {product.product_description}</p>
-                  <p><strong>Valor:</strong> ${parseFloat(product.product_value).toFixed(2)}</p>
-                  <p><strong>Tienda:</strong> {product.product_store}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              <p><strong>Cliente:</strong> <button onClick={() => navigate(`/users/${pkg.user_id}`)} className="text-blue-600 hover:underline dark:text-blue-400">{pkg.user_fullname}</button></p>
-              <p><strong>Email:</strong> {pkg.user_email}</p>
-              <p><strong>Prefix:</strong> {pkg.user_prefix}</p>
-              <div className="mt-2">
-                <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>
-                  Actualizar
-                </Button>
-              </div>
 
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>Actualizar</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDelete(pkg.id)}
+                className="flex items-center gap-1"
+              >
+                <HiTrash className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Botón flotante (FAB) */}
+      <button
+        onClick={() => navigate('/create-package')}
+        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-transform duration-200 hover:scale-110"
+        title="Crear paquete"
+      >
+        <HiPlus className="w-6 h-6" />
+      </button>
     </div>
   );
 }
