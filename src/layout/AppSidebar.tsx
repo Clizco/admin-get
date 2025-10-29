@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { icon: <CarFront />, name: "Conductores", path: "/drivers" },
   { icon: <Users />, name: "Usuarios", path: "/users" },
   { icon: <Calculator />, name: "Calculadora", path: "/calculator" },
+  { icon: <MoreHorizontal />, name: "Puntos", path: "/points" },
 ];
 
 const AppSidebar: React.FC = () => {

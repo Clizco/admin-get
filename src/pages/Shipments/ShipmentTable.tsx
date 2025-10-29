@@ -11,23 +11,23 @@ import Badge from "../../components/ui/badge/Badge";
 import Select from "../../components/form/Select";
 import Button from "../../components/ui/button/Button";
 
-// =======================
-// Tipos
-// =======================
+/* =======================
+   Tipos
+======================= */
 interface Shipment {
   id: number;
   shipment_code: string;
   shipment_date: string;
-  shipment_status: string;
-  shipment_origin: string; // province id
-  shipment_destination: string; // province id
+  shipment_status: "Pending" | "Active" | "Delivered" | string;
+  shipment_origin: string;         // province id
+  shipment_destination: string;    // province id
   shipment_sender_name: string;
   shipment_sender_phonenumber: string;
   shipment_receiver_name: string;
   shipment_receiver_phonenumber: string;
   shipment_description: string;
   shipment_assigned_user: string | null;
-  shipment_user: number;
+  shipment_user: number;           // id del creador
 }
 
 interface Province {
@@ -35,15 +35,49 @@ interface Province {
   province_name: string;
 }
 
-// =======================
-// Modal de Detalles
-// =======================
+interface UserRow {
+  id: number;
+  user_firstname?: string;
+  user_lastname?: string;
+  user_email: string;
+}
+
+/* =======================
+   helpers & config
+======================= */
+const apiUrl = import.meta.env.VITE_API_URL || "";
+
+const statusOptions = [
+  { value: "Pending", label: "Pendiente" },
+  { value: "Active", label: "Activo" },
+  { value: "Delivered", label: "Entregado" },
+];
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+/* =======================
+   Modal de Detalles
+======================= */
 interface ShipmentDetailsModalProps {
   open: boolean;
   onClose: () => void;
   shipment: Shipment | null;
+
+  // helpers
   getProvinceName: (id: string) => string;
   formatDate: (d: string) => string;
+  getUserDisplay: (userId: number) => string;
+
+  // acciones
+  onUpdateStatus: (shipmentId: number, newStatus: string) => Promise<void>;
+  onDeleteShipment: (shipmentId: number) => Promise<void>;
 }
 
 function ShipmentDetailsModal({
@@ -52,18 +86,41 @@ function ShipmentDetailsModal({
   shipment,
   getProvinceName,
   formatDate,
+  getUserDisplay,
+  onUpdateStatus,
+  onDeleteShipment,
 }: ShipmentDetailsModalProps) {
+  const [localStatus, setLocalStatus] = useState<string>("");
+
+  useEffect(() => {
+    setLocalStatus(shipment?.shipment_status ?? "");
+  }, [shipment]);
+
   if (!open || !shipment) return null;
+
+  const colorByStatus =
+    shipment.shipment_status === "Active"
+      ? "success"
+      : shipment.shipment_status === "Pending"
+      ? "warning"
+      : "error";
+
+  const onSaveStatus = async () => {
+    if (!localStatus || localStatus === shipment.shipment_status) return;
+    await onUpdateStatus(shipment.id, localStatus);
+  };
+
+  const onDelete = async () => {
+    if (!confirm(`¿Eliminar envío ${shipment.shipment_code}?`)) return;
+    await onDeleteShipment(shipment.id);
+  };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* Fondo oscuro */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Card del modal */}
+      {/* Card */}
       <div className="relative w-[90%] max-w-lg rounded-xl bg-white dark:bg-gray-900 dark:text-white shadow-xl border border-gray-200 dark:border-white/[0.08] p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
@@ -75,38 +132,16 @@ function ShipmentDetailsModal({
               </span>
             </h2>
 
-            <Badge
-              size="sm"
-              color={
-                shipment.shipment_status === "Active"
-                  ? "success"
-                  : shipment.shipment_status === "Pending"
-                  ? "warning"
-                  : "error"
-              }
-            >
-              {shipment.shipment_status}
-            </Badge>
+            <Badge size="sm" color={colorByStatus}>{shipment.shipment_status}</Badge>
           </div>
 
-          {/* Botón cerrar */}
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition"
             aria-label="Cerrar"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>
         </div>
@@ -115,119 +150,91 @@ function ShipmentDetailsModal({
         <div className="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-1">
           {/* Ruta */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
-            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
-              Ruta
-            </h3>
+            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">Ruta</h3>
             <div className="space-y-1 text-gray-700 dark:text-white">
-              <p>
-                <span className="font-semibold">Origen:</span>{" "}
-                {getProvinceName(shipment.shipment_origin)}
-              </p>
-              <p>
-                <span className="font-semibold">Destino:</span>{" "}
-                {getProvinceName(shipment.shipment_destination)}
-              </p>
+              <p><span className="font-semibold">Origen:</span> {getProvinceName(shipment.shipment_origin)}</p>
+              <p><span className="font-semibold">Destino:</span> {getProvinceName(shipment.shipment_destination)}</p>
             </div>
           </section>
 
           {/* Remitente */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
-            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
-              Remitente
-            </h3>
+            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">Remitente</h3>
             <div className="space-y-1 text-gray-700 dark:text-white">
-              <p>
-                <span className="font-semibold">Nombre:</span>{" "}
-                {shipment.shipment_sender_name || "—"}
-              </p>
-              <p>
-                <span className="font-semibold">Teléfono:</span>{" "}
-                {shipment.shipment_sender_phonenumber || "—"}
-              </p>
+              <p><span className="font-semibold">Nombre:</span> {shipment.shipment_sender_name || "—"}</p>
+              <p><span className="font-semibold">Teléfono:</span> {shipment.shipment_sender_phonenumber || "—"}</p>
             </div>
           </section>
 
           {/* Receptor */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
-            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
-              Destinatario
-            </h3>
+            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">Destinatario</h3>
             <div className="space-y-1 text-gray-700 dark:text-white">
-              <p>
-                <span className="font-semibold">Nombre:</span>{" "}
-                {shipment.shipment_receiver_name || "—"}
-              </p>
-              <p>
-                <span className="font-semibold">Teléfono:</span>{" "}
-                {shipment.shipment_receiver_phonenumber || "—"}
-              </p>
+              <p><span className="font-semibold">Nombre:</span> {shipment.shipment_receiver_name || "—"}</p>
+              <p><span className="font-semibold">Teléfono:</span> {shipment.shipment_receiver_phonenumber || "—"}</p>
             </div>
           </section>
 
           {/* Descripción */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
-            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
-              Descripción del Envío
-            </h3>
+            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">Descripción del Envío</h3>
             <p className="text-gray-700 dark:text-white/90 leading-relaxed break-words">
               {shipment.shipment_description || "Sin descripción"}
             </p>
           </section>
 
-          {/* Info interna */}
+          {/* Interno */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
-            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
-              Interno
-            </h3>
-            <div className="space-y-1 text-gray-700 dark:text-white">
-              <p>
-                <span className="font-semibold">Asignado a:</span>{" "}
-                {shipment.shipment_assigned_user || "—"}
-              </p>
-              <p>
-                <span className="font-semibold">ID Usuario:</span>{" "}
-                {shipment.shipment_user}
-              </p>
-              <p>
-                <span className="font-semibold">ID Interno Envío:</span>{" "}
-                {shipment.id}
-              </p>
+            <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">Interno</h3>
+            <div className="space-y-2 text-gray-700 dark:text-white">
+              <p><span className="font-semibold">Asignado a:</span> {shipment.shipment_assigned_user || "—"}</p>
+              <p><span className="font-semibold">Creado por:</span> {getUserDisplay(shipment.shipment_user)}</p>
+              <p><span className="font-semibold">ID Usuario:</span> {shipment.shipment_user}</p>
+              <p><span className="font-semibold">ID Interno Envío:</span> {shipment.id}</p>
+
+              {/* Cambiar estado */}
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
+                <div>
+                  <label className="block mb-1 text-xs font-medium text-gray-600 dark:text-white/70">Estado del envío</label>
+                  <Select
+                    value={localStatus}
+                    onChange={(v: string) => setLocalStatus(v)}
+                    options={statusOptions}
+                    className="w-full"
+                  />
+                </div>
+                <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={onSaveStatus}>
+                  Guardar estado
+                </Button>
+              </div>
+
+              {/* Eliminar */}
+              <div className="pt-2">
+                <Button size="sm" variant="outline" className="border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={onDelete}>
+                  Eliminar envío
+                </Button>
+              </div>
             </div>
           </section>
         </div>
 
-        {/* Footer modal */}
+        {/* Footer */}
         <div className="flex justify-end pt-4 mt-4 border-t border-gray-200 dark:border-white/[0.08]">
-          <Button size="sm" variant="outline" onClick={onClose}>
-            Cerrar
-          </Button>
+          <Button size="sm" variant="outline" onClick={onClose}>Cerrar</Button>
         </div>
       </div>
     </div>
   );
 }
 
-// =======================
-// funciones helpers
-// =======================
-const apiUrl = import.meta.env.VITE_API_URL || "";
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
-// =======================
-// MAIN COMPONENT
-// =======================
+/* =======================
+   MAIN COMPONENT
+======================= */
 export default function ShipmentTable() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [provinces, setProvinces] = useState<Record<number, string>>({});
   const [allProvinces, setAllProvinces] = useState<Province[]>([]);
+  const [usersMap, setUsersMap] = useState<Record<number, string>>({}); // id -> display
   const [loading, setLoading] = useState(false);
   const [fade, setFade] = useState(false);
 
@@ -236,29 +243,44 @@ export default function ShipmentTable() {
   const [provinceFilter, setProvinceFilter] = useState("");
 
   // modal
-  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(
-    null
-  );
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // fetch provincias
   useEffect(() => {
     const fetchProvinces = async () => {
       try {
-        const { data } = await axios.get<Province[]>(
-          `${apiUrl}/provinces/provinces/all`
-        );
-        const provinceMap: Record<number, string> = {};
-        data.forEach((province) => {
-          provinceMap[province.id] = province.province_name;
-        });
-        setProvinces(provinceMap);
+        const { data } = await axios.get<Province[]>(`${apiUrl}/provinces/provinces/all`);
+        const map: Record<number, string> = {};
+        data.forEach((p) => (map[p.id] = p.province_name));
+        setProvinces(map);
         setAllProvinces(data);
       } catch (error) {
         console.error("Error fetching province data:", error);
       }
     };
     fetchProvinces();
+  }, []);
+
+  // fetch usuarios (para “Creado por”)
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const { data } = await axios.get<UserRow[]>(`${apiUrl}/users/users/all`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const map: Record<number, string> = {};
+        (data || []).forEach((u) => {
+          const name = `${u.user_firstname ?? ""} ${u.user_lastname ?? ""}`.trim();
+          map[u.id] = name || u.user_email;
+        });
+        setUsersMap(map);
+      } catch (e) {
+        console.error("Error fetching users:", e);
+      }
+    };
+    fetchUsers();
   }, []);
 
   // fetch envíos
@@ -268,16 +290,10 @@ export default function ShipmentTable() {
         setLoading(true);
         const token = localStorage.getItem("token");
         if (!token) return;
-
-        // esta ruta ahora devuelve TODOS los envíos (para administración)
-        const response = await axios.get<Shipment[]>(
-          `${apiUrl}/shipments/shipments/all`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        setShipments(response.data);
+        const { data } = await axios.get<Shipment[]>(`${apiUrl}/shipments/shipments/all`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setShipments(data);
       } catch (error) {
         console.error("Error fetching shipment data:", error);
       } finally {
@@ -285,35 +301,63 @@ export default function ShipmentTable() {
         setTimeout(() => setFade(true), 50);
       }
     };
-
     setFade(false);
     fetchShipments();
   }, []);
 
   // helpers
-  const getProvinceName = (provinceId: string) => {
-    const idNumber = Number(provinceId);
-    return provinces[idNumber] || "Desconocido";
-  };
+  const getProvinceName = (provinceId: string) => provinces[Number(provinceId)] || "Desconocido";
+  const getUserDisplay = (userId: number) => usersMap[userId] || `Usuario #${userId}`;
 
   const openDetails = (shipment: Shipment) => {
     setSelectedShipment(shipment);
     setIsDetailsOpen(true);
   };
-
   const closeDetails = () => {
     setIsDetailsOpen(false);
     setSelectedShipment(null);
   };
 
+  // acciones API
+  const updateShipmentStatus = async (shipmentId: number, newStatus: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `${apiUrl}/shipments/shipments/update-status/${shipmentId}`,
+        { shipment_status: newStatus },
+        { headers: token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : undefined }
+      );
+
+      // sync local
+      setShipments((prev) =>
+        prev.map((s) => (s.id === shipmentId ? { ...s, shipment_status: newStatus } : s))
+      );
+    } catch (e: any) {
+      console.error("Error actualizando estado:", e);
+      alert(e?.response?.data?.message || "No se pudo actualizar el estado");
+    }
+  };
+
+  const deleteShipment = async (shipmentId: number) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${apiUrl}/shipments/shipments/delete/${shipmentId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      setShipments((prev) => prev.filter((s) => s.id !== shipmentId));
+      // si estamos viendo ese envío, cerramos modal
+      if (selectedShipment?.id === shipmentId) closeDetails();
+    } catch (e: any) {
+      console.error("Error eliminando envío:", e);
+      alert(e?.response?.data?.message || "No se pudo eliminar el envío");
+    }
+  };
+
   // filtros frontend
   const filteredShipments = shipments.filter((s) => {
-    const matchStatus = statusFilter
-      ? s.shipment_status === statusFilter
-      : true;
-    const matchProvince = provinceFilter
-      ? String(s.shipment_destination) === provinceFilter
-      : true;
+    const matchStatus = statusFilter ? s.shipment_status === statusFilter : true;
+    const matchProvince = provinceFilter ? String(s.shipment_destination) === provinceFilter : true;
     return matchStatus && matchProvince;
   });
 
@@ -326,141 +370,58 @@ export default function ShipmentTable() {
             label="Filtrar por estado"
             value={statusFilter}
             onChange={(value: string) => setStatusFilter(value)}
-            options={[
-              { value: "", label: "Todos" },
-              { value: "Pending", label: "Pendiente" },
-              { value: "Active", label: "Activo" },
-              { value: "Delivered", label: "Entregado" },
-            ]}
+            options={[{ value: "", label: "Todos" }, ...statusOptions]}
           />
-
           <Select
             label="Filtrar por destino"
             value={provinceFilter}
             onChange={(value: string) => setProvinceFilter(value)}
             options={[
               { value: "", label: "Todos" },
-              ...allProvinces.map((province) => ({
-                value: String(province.id),
-                label: province.province_name,
-              })),
+              ...allProvinces.map((p) => ({ value: String(p.id), label: p.province_name })),
             ]}
           />
         </div>
 
         {/* Desktop */}
-        <div
-          className={`hidden md:block max-w-full overflow-x-auto p-4 transition-opacity duration-500 ${
-            fade ? "opacity-100" : "opacity-0"
-          }`}
-        >
+        <div className={`hidden md:block max-w-full overflow-x-auto p-4 transition-opacity duration-500 ${fade ? "opacity-100" : "opacity-0"}`}>
           {loading ? (
-            <div className="text-center text-gray-500 dark:text-white/70 p-8">
-              Cargando envíos...
-            </div>
+            <div className="text-center text-gray-500 dark:text-white/70 p-8">Cargando envíos...</div>
           ) : filteredShipments.length === 0 ? (
-            <div className="text-center text-gray-500 dark:text-white/70 p-8">
-              No hay envíos registrados.
-            </div>
+            <div className="text-center text-gray-500 dark:text-white/70 p-8">No hay envíos registrados.</div>
           ) : (
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                 <TableRow>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Código
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Fecha
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Estado
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Origen
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Destino
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Remitente
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Descripción
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
-                  >
-                    Acciones
-                  </TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Código</TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Fecha</TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Estado</TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Origen</TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Destino</TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Remitente</TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Descripción</TableCell>
+                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Acciones</TableCell>
                 </TableRow>
               </TableHeader>
-
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                 {filteredShipments.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="text-gray-700 dark:text-white">
-                      {s.shipment_code}
-                    </TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">
-                      {formatDate(s.shipment_date)}
-                    </TableCell>
+                    <TableCell className="text-gray-700 dark:text-white">{s.shipment_code}</TableCell>
+                    <TableCell className="text-gray-700 dark:text-white">{formatDate(s.shipment_date)}</TableCell>
                     <TableCell>
                       <Badge
                         size="sm"
-                        color={
-                          s.shipment_status === "Active"
-                            ? "success"
-                            : s.shipment_status === "Pending"
-                            ? "warning"
-                            : "error"
-                        }
+                        color={s.shipment_status === "Active" ? "success" : s.shipment_status === "Pending" ? "warning" : "error"}
                       >
                         {s.shipment_status}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-gray-700 dark:text-white">{getProvinceName(s.shipment_origin)}</TableCell>
+                    <TableCell className="text-gray-700 dark:text-white">{getProvinceName(s.shipment_destination)}</TableCell>
+                    <TableCell className="text-gray-700 dark:text-white">{s.shipment_sender_name}</TableCell>
+                    <TableCell className="text-gray-700 dark:text-white max-w-[200px] truncate">{s.shipment_description}</TableCell>
                     <TableCell className="text-gray-700 dark:text-white">
-                      {getProvinceName(s.shipment_origin)}
-                    </TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">
-                      {getProvinceName(s.shipment_destination)}
-                    </TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">
-                      {s.shipment_sender_name}
-                    </TableCell>
-                    <TableCell className="text-gray-700 dark:text-white max-w-[200px] truncate">
-                      {s.shipment_description}
-                    </TableCell>
-
-                    <TableCell className="text-gray-700 dark:text-white">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDetails(s)}
-                      >
-                        Ver Detalles
-                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openDetails(s)}>Ver Detalles</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -469,73 +430,35 @@ export default function ShipmentTable() {
           )}
         </div>
 
-        {/* Mobile cards */}
-        <div
-          className={`block md:hidden p-4 space-y-4 transition-opacity duration-500 ${
-            fade ? "opacity-100" : "opacity-0"
-          }`}
-        >
+        {/* Mobile */}
+        <div className={`block md:hidden p-4 space-y-4 transition-opacity duration-500 ${fade ? "opacity-100" : "opacity-0"}`}>
           {loading ? (
-            <div className="text-center text-gray-500 dark:text-white/70">
-              Cargando envíos...
-            </div>
+            <div className="text-center text-gray-500 dark:text-white/70">Cargando envíos...</div>
           ) : filteredShipments.length === 0 ? (
-            <div className="text-center text-gray-500 dark:text-white/70">
-              No hay envíos registrados.
-            </div>
+            <div className="text-center text-gray-500 dark:text-white/70">No hay envíos registrados.</div>
           ) : (
             filteredShipments.map((s) => (
-              <div
-                key={s.id}
-                className="border rounded-lg p-4 text-sm bg-white dark:bg-white/5 border-gray-200 dark:border-white/[0.05] space-y-2 shadow-sm"
-              >
+              <div key={s.id} className="border rounded-lg p-4 text-sm bg-white dark:bg-white/5 border-gray-200 dark:border-white/[0.05] space-y-2 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="text-gray-700 dark:text-white">
-                    <p className="font-medium text-blue-600 dark:text-blue-400">
-                      {s.shipment_code}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-white/50">
-                      {formatDate(s.shipment_date)}
-                    </p>
+                    <p className="font-medium text-blue-600 dark:text-blue-400">{s.shipment_code}</p>
+                    <p className="text-xs text-gray-500 dark:text-white/50">{formatDate(s.shipment_date)}</p>
                   </div>
                   <Badge
                     size="sm"
-                    color={
-                      s.shipment_status === "Active"
-                        ? "success"
-                        : s.shipment_status === "Pending"
-                        ? "warning"
-                        : "error"
-                    }
+                    color={s.shipment_status === "Active" ? "success" : s.shipment_status === "Pending" ? "warning" : "error"}
                   >
                     {s.shipment_status}
                   </Badge>
                 </div>
 
-                <p className="text-gray-700 dark:text-white text-sm">
-                  <strong>Origen:</strong>{" "}
-                  {getProvinceName(s.shipment_origin)}
-                </p>
-                <p className="text-gray-700 dark:text-white text-sm">
-                  <strong>Destino:</strong>{" "}
-                  {getProvinceName(s.shipment_destination)}
-                </p>
-
-                <p className="text-gray-700 dark:text-white text-sm">
-                  <strong>Remitente:</strong> {s.shipment_sender_name}
-                </p>
-
-                <p className="text-gray-700 dark:text-white text-sm leading-snug break-words">
-                  <strong>Descripción:</strong> {s.shipment_description}
-                </p>
+                <p className="text-gray-700 dark:text-white text-sm"><strong>Origen:</strong> {getProvinceName(s.shipment_origin)}</p>
+                <p className="text-gray-700 dark:text-white text-sm"><strong>Destino:</strong> {getProvinceName(s.shipment_destination)}</p>
+                <p className="text-gray-700 dark:text-white text-sm"><strong>Remitente:</strong> {s.shipment_sender_name}</p>
+                <p className="text-gray-700 dark:text-white text-sm leading-snug break-words"><strong>Descripción:</strong> {s.shipment_description}</p>
 
                 <div className="pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openDetails(s)}
-                    className="w-full"
-                  >
+                  <Button size="sm" variant="outline" onClick={() => openDetails(s)} className="w-full">
                     Ver Detalles
                   </Button>
                 </div>
@@ -552,6 +475,9 @@ export default function ShipmentTable() {
         shipment={selectedShipment}
         getProvinceName={getProvinceName}
         formatDate={formatDate}
+        getUserDisplay={getUserDisplay}
+        onUpdateStatus={updateShipmentStatus}
+        onDeleteShipment={deleteShipment}
       />
     </>
   );
