@@ -30,7 +30,7 @@ type LedgerRow = {
   delta: number;
   reason: string | null;
   source: string | null;
-  meta: any;                 // puede venir string o JSON
+  meta: any; // puede venir string o JSON
   expires_at: string | null;
   created_at: string;
 };
@@ -38,8 +38,9 @@ type LedgerRow = {
 const apiUrl = import.meta.env.VITE_API_URL || "";
 const usersUrl = `${apiUrl}/users/users/all`;
 const pointsGrantUrl = `${apiUrl}/points/points/grant`;
-const pointsBalanceUrl = (userId: number) => `${apiUrl}/points/points/${userId}/balance`;
-const pointsLedgerUrl  = (userId: number, limit=20, offset=0) =>
+const pointsBalanceUrl = (userId: number) =>
+  `${apiUrl}/points/points/${userId}/balance`;
+const pointsLedgerUrl = (userId: number, limit = 20, offset = 0) =>
   `${apiUrl}/points/points/${userId}/ledger?limit=${limit}&offset=${offset}`;
 
 export default function PointsTable() {
@@ -77,14 +78,20 @@ export default function PointsTable() {
         const balancesPairs = await Promise.all(
           (usersData ?? []).map(async (u) => {
             try {
-              const { data } = await axios.get<BalanceInfo>(pointsBalanceUrl(u.id), {
-                headers: token
-                  ? { Authorization: `Bearer ${token}`, "x-access-token": token }
-                  : undefined,
-              });
+              const { data } = await axios.get<BalanceInfo>(
+                pointsBalanceUrl(u.id),
+                {
+                  headers: token
+                    ? { Authorization: `Bearer ${token}`, "x-access-token": token }
+                    : undefined,
+                }
+              );
               return [u.id, data] as const;
             } catch {
-              return [u.id, { user_id: u.id, balance: 0, updated_at: null } as BalanceInfo] as const;
+              return [
+                u.id,
+                { user_id: u.id, balance: 0, updated_at: null } as BalanceInfo,
+              ] as const;
             }
           })
         );
@@ -200,11 +207,14 @@ export default function PointsTable() {
     try {
       setLedgerLoading(true);
       const token = localStorage.getItem("token");
-      const { data } = await axios.get<LedgerRow[]>(pointsLedgerUrl(userId, limit, offset), {
-        headers: token
-          ? { Authorization: `Bearer ${token}`, "x-access-token": token }
-          : undefined,
-      });
+      const { data } = await axios.get<LedgerRow[]>(
+        pointsLedgerUrl(userId, limit, offset),
+        {
+          headers: token
+            ? { Authorization: `Bearer ${token}`, "x-access-token": token }
+            : undefined,
+        }
+      );
 
       // Normaliza meta (string -> JSON si aplica)
       const normalized: LedgerRow[] = (data ?? []).map((r) => {
@@ -252,8 +262,12 @@ export default function PointsTable() {
   };
 
   const totals = useMemo(() => {
-    const sumIn = ledger.filter(l => l.delta > 0).reduce((a,b) => a + b.delta, 0);
-    const sumOut = ledger.filter(l => l.delta < 0).reduce((a,b) => a + Math.abs(b.delta), 0);
+    const sumIn = ledger
+      .filter((l) => l.delta > 0)
+      .reduce((a, b) => a + b.delta, 0);
+    const sumOut = ledger
+      .filter((l) => l.delta < 0)
+      .reduce((a, b) => a + Math.abs(b.delta), 0);
     return { sumIn, sumOut };
   }, [ledger]);
 
@@ -265,7 +279,7 @@ export default function PointsTable() {
           <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
             Buscar usuario
           </label>
-        <input
+          <input
             type="text"
             placeholder="Nombre, correo o teléfono"
             value={searchText}
@@ -301,22 +315,40 @@ export default function PointsTable() {
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
                   Usuario
                 </TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
                   Email
                 </TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
                   Teléfono
                 </TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
                   Saldo (pts)
                 </TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
                   Actualizado
                 </TableCell>
-                <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">
+                <TableCell
+                  isHeader
+                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                >
                   Acción
                 </TableCell>
               </TableRow>
@@ -343,6 +375,7 @@ export default function PointsTable() {
                     setGrantReason={setGrantReason}
                     onGrant={() => handleGrant(u.id)}
                     grantLoading={grantLoading}
+                    onCancel={() => setOpenRow(null)} // 👈 FIX cancelar
                   />
                 );
               })}
@@ -450,7 +483,10 @@ export default function PointsTable() {
       {/* MODAL LEDGER */}
       {ledgerOpenUserId !== null && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={closeLedgerModal} />
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={closeLedgerModal}
+          />
           <div className="relative z-[61] w-[95%] max-w-3xl rounded-2xl bg-white dark:bg-[#0b0b0b] border border-gray-200 dark:border-white/[0.06] shadow-lg">
             <div className="p-4 border-b border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
@@ -464,42 +500,89 @@ export default function PointsTable() {
             <div className="p-4">
               {/* Totales rápidos */}
               <div className="mb-3 text-sm text-gray-700 dark:text-white/80 flex gap-4">
-                <span><strong>Acreditado:</strong> +{totals.sumIn} pts</span>
-                <span><strong>Canjeado:</strong> -{totals.sumOut} pts</span>
+                <span>
+                  <strong>Acreditado:</strong> +{totals.sumIn} pts
+                </span>
+                <span>
+                  <strong>Canjeado:</strong> -{totals.sumOut} pts
+                </span>
               </div>
 
               <div className="max-h-[60vh] overflow-auto rounded-lg border border-gray-100 dark:border-white/[0.06]">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-gray-50 dark:bg-white/[0.03]">
                     <tr>
-                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">Fecha</th>
-                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">Δ Pts</th>
-                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">Motivo</th>
-                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">Fuente</th>
-                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">Meta</th>
-                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">Expira</th>
+                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">
+                        Fecha
+                      </th>
+                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">
+                        Δ Pts
+                      </th>
+                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">
+                        Motivo
+                      </th>
+                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">
+                        Fuente
+                      </th>
+                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">
+                        Meta
+                      </th>
+                      <th className="text-left p-3 font-medium text-gray-500 dark:text-gray-400">
+                        Expira
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/[0.06]">
                     {ledgerLoading ? (
-                      <tr><td className="p-4 text-gray-500 dark:text-white/70" colSpan={6}>Cargando…</td></tr>
+                      <tr>
+                        <td
+                          className="p-4 text-gray-500 dark:text-white/70"
+                          colSpan={6}
+                        >
+                          Cargando…
+                        </td>
+                      </tr>
                     ) : ledger.length === 0 ? (
-                      <tr><td className="p-4 text-gray-500 dark:text-white/70" colSpan={6}>Sin movimientos</td></tr>
+                      <tr>
+                        <td
+                          className="p-4 text-gray-500 dark:text-white/70"
+                          colSpan={6}
+                        >
+                          Sin movimientos
+                        </td>
+                      </tr>
                     ) : (
                       ledger.map((m) => (
-                        <tr key={m.id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.03]">
-                          <td className="p-3 text-gray-800 dark:text-white">{formatDate(m.created_at)}</td>
-                          <td className={`p-3 font-semibold ${m.delta >= 0 ? "text-green-600" : "text-red-500"}`}>
+                        <tr
+                          key={m.id}
+                          className="hover:bg-gray-50/50 dark:hover:bg-white/[0.03]"
+                        >
+                          <td className="p-3 text-gray-800 dark:text-white">
+                            {formatDate(m.created_at)}
+                          </td>
+                          <td
+                            className={`p-3 font-semibold ${
+                              m.delta >= 0 ? "text-green-600" : "text-red-500"
+                            }`}
+                          >
                             {m.delta >= 0 ? `+${m.delta}` : m.delta}
                           </td>
-                          <td className="p-3 text-gray-800 dark:text-white">{m.reason ?? "-"}</td>
-                          <td className="p-3 text-gray-800 dark:text-white">{m.source ?? "-"}</td>
+                          <td className="p-3 text-gray-800 dark:text-white">
+                            {m.reason ?? "-"}
+                          </td>
+                          <td className="p-3 text-gray-800 dark:text-white">
+                            {m.source ?? "-"}
+                          </td>
                           <td className="p-3 text-gray-700 dark:text-white/80">
                             <code className="text-xs break-words">
-                              {m.meta && typeof m.meta === "object" ? JSON.stringify(m.meta) : (m.meta ?? "-")}
+                              {m.meta && typeof m.meta === "object"
+                                ? JSON.stringify(m.meta)
+                                : m.meta ?? "-"}
                             </code>
                           </td>
-                          <td className="p-3 text-gray-800 dark:text-white">{m.expires_at ? formatDate(m.expires_at) : "-"}</td>
+                          <td className="p-3 text-gray-800 dark:text-white">
+                            {m.expires_at ? formatDate(m.expires_at) : "-"}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -513,10 +596,20 @@ export default function PointsTable() {
                   offset {ledgerOffset} · limit {ledgerLimit}
                 </span>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={prevPage} disabled={ledgerOffset === 0 || ledgerLoading}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={prevPage}
+                    disabled={ledgerOffset === 0 || ledgerLoading}
+                  >
                     Anterior
                   </Button>
-                  <Button size="sm" variant="outline" onClick={nextPage} disabled={ledgerLoading || ledger.length < ledgerLimit}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={nextPage}
+                    disabled={ledgerLoading || ledger.length < ledgerLimit}
+                  >
                     Siguiente
                   </Button>
                 </div>
@@ -546,6 +639,7 @@ function FragmentRow(props: {
   setGrantReason: (v: string) => void;
   onGrant: () => void;
   grantLoading: boolean;
+  onCancel: () => void; // 👈 agregado
 }) {
   const {
     isOpen,
@@ -562,12 +656,15 @@ function FragmentRow(props: {
     setGrantReason,
     onGrant,
     grantLoading,
+    onCancel, // 👈 agregado
   } = props;
 
   return (
     <>
       <TableRow>
-        <TableCell className="text-gray-700 dark:text-white">{displayName}</TableCell>
+        <TableCell className="text-gray-700 dark:text-white">
+          {displayName}
+        </TableCell>
         <TableCell className="text-gray-700 dark:text-white">{email}</TableCell>
         <TableCell className="text-gray-700 dark:text-white">{phone}</TableCell>
         <TableCell className="text-gray-700 dark:text-white">{balance}</TableCell>
@@ -625,13 +722,14 @@ function FragmentRow(props: {
                   >
                     {grantLoading ? "Guardando..." : "Confirmar"}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => (window as any).setOpenRow?.(null)}>
+                  <Button size="sm" variant="outline" onClick={onCancel}>
                     Cancelar
                   </Button>
                 </div>
               </div>
               <p className="mt-2 text-xs text-gray-500 dark:text-white/50">
-                Se registrará un movimiento en el ledger y se actualizará el saldo del usuario
+                Se registrará un movimiento en el ledger y se actualizará el saldo
+                del usuario
               </p>
             </div>
           </td>
