@@ -31,6 +31,7 @@ import UserTable from "./pages/Users/UsersTable";
 import UserDetail from "./pages/Users/UserDetail";
 import UpdatePackage from "./pages/Packages/UpdatePackage/UpdatePackage";
 import PointsTable from "./pages/Points/PointsTable";
+import UpdateDriver from "./pages/Drivers/UpdateDriver/UpdateDriver";
 
 export default function App() {
   return (
@@ -71,6 +72,7 @@ export default function App() {
             <Route path="/users/:id" element={<UserDetail />} />
             <Route path="/packages/edit/:id" element={<UpdatePackage />} />
             <Route path="/points" element={<PointsTable />} />
+            <Route path="/drivers/edit/:id" element={<UpdateDriver />} />
            
             
 

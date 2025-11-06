@@ -1,4 +1,4 @@
-import { useEffect, useState, ChangeEvent } from 'react';
+import { useEffect, useState, ChangeEvent, useMemo } from 'react';
 import axios from 'axios';
 import {
   Table,
@@ -10,7 +10,7 @@ import {
 import Button from '../../components/ui/button/Button';
 import Badge from '../../components/ui/badge/Badge';
 import { useNavigate } from 'react-router-dom';
-import { HiPlus, HiTrash } from 'react-icons/hi';
+import { HiTrash, HiPencil, HiChevronUp, HiChevronDown } from 'react-icons/hi';
 import Select from '../../components/form/Select';
 
 interface Product {
@@ -35,6 +35,9 @@ interface Package {
   user_prefix: string;
   user_fullname: string;
 }
+
+type SortKey = 'created_at' | 'user_fullname';
+type SortDirection = 'asc' | 'desc';
 
 const apiUrl = import.meta.env.VITE_API_URL || '';
 
@@ -71,6 +74,10 @@ export default function PackageTableAdmin() {
   const [search, setSearch] = useState<string>('');
   const navigate = useNavigate();
 
+  // --- Ordenamiento ---
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
   const fetchPackages = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -106,7 +113,6 @@ export default function PackageTableAdmin() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Actualiza lista tras eliminar
       setPackages((prev) => prev.filter((pkg) => pkg.id !== packageId));
     } catch (error) {
       console.error('Error eliminando paquete:', error);
@@ -119,16 +125,54 @@ export default function PackageTableAdmin() {
     fetchStatuses();
   }, []);
 
-  const filteredPackages = packages.filter((pkg) => {
-    const matchesStatus = selectedStatus === 'Todos' || pkg.status_name === selectedStatus;
-    const matchesSearch = pkg.package_tracking_id.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter =
-      pkg.user_fullname.toLowerCase().includes(filter.toLowerCase()) ||
-      pkg.user_email.toLowerCase().includes(filter.toLowerCase()) ||
-      pkg.user_prefix.toLowerCase().includes(filter.toLowerCase());
+  const filteredPackages = useMemo(() => {
+    return packages.filter((pkg) => {
+      const matchesStatus = selectedStatus === 'Todos' || pkg.status_name === selectedStatus;
+      const matchesSearch = pkg.package_tracking_id.toLowerCase().includes(search.toLowerCase());
+      const matchesFilter =
+        pkg.user_fullname.toLowerCase().includes(filter.toLowerCase()) ||
+        pkg.user_email.toLowerCase().includes(filter.toLowerCase()) ||
+        pkg.user_prefix.toLowerCase().includes(filter.toLowerCase());
 
-    return matchesStatus && matchesSearch && matchesFilter;
-  });
+      return matchesStatus && matchesSearch && matchesFilter;
+    });
+  }, [packages, selectedStatus, search, filter]);
+
+  const sortedPackages = useMemo(() => {
+    if (!sortKey) return filteredPackages;
+
+    const sorted = [...filteredPackages].sort((a, b) => {
+      if (sortKey === 'created_at') {
+        const at = new Date(a.created_at).getTime();
+        const bt = new Date(b.created_at).getTime();
+        return sortDirection === 'asc' ? at - bt : bt - at;
+      }
+      // user_fullname
+      return sortDirection === 'asc'
+        ? a.user_fullname.localeCompare(b.user_fullname, 'es', { sensitivity: 'base' })
+        : b.user_fullname.localeCompare(a.user_fullname, 'es', { sensitivity: 'base' });
+    });
+
+    return sorted;
+  }, [filteredPackages, sortKey, sortDirection]);
+
+  const handleSortToggle = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIndicator = ({ active }: { active: boolean }) => {
+    if (!active) return null;
+    return sortDirection === 'asc' ? (
+      <HiChevronUp className="w-4 h-4" />
+    ) : (
+      <HiChevronDown className="w-4 h-4" />
+    );
+  };
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -176,16 +220,36 @@ export default function PackageTableAdmin() {
         <Table>
           <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
             <TableRow>
-              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Creado</TableCell>
+              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => handleSortToggle('created_at')}
+                  className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                  title="Ordenar por fecha de creación"
+                >
+                  Creado
+                  <SortIndicator active={sortKey === 'created_at'} />
+                </button>
+              </TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Tracking</TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Estado</TableCell>
-              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Cliente</TableCell>
+              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => handleSortToggle('user_fullname')}
+                  className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                  title="Ordenar por cliente"
+                >
+                  Cliente
+                  <SortIndicator active={sortKey === 'user_fullname'} />
+                </button>
+              </TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Acciones</TableCell>
             </TableRow>
           </TableHeader>
 
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {filteredPackages.map((pkg) => (
+            {sortedPackages.map((pkg) => (
               <TableRow key={pkg.id}>
                 <TableCell className="px-5 py-3 text-sm text-gray-500 dark:text-gray-300">{formatDate(pkg.created_at)}</TableCell>
                 <TableCell className="px-5 py-3 text-blue-600 dark:text-blue-400 font-medium">{pkg.package_tracking_id}</TableCell>
@@ -203,16 +267,28 @@ export default function PackageTableAdmin() {
 
                 <TableCell className="px-5 py-3 text-start">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>
-                      Actualizar
+                    {/* Edit (ícono) */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEdit(pkg.id)}
+                      aria-label="Editar"
+                      className="p-2"
+                    >
+                      <HiPencil className="w-4 h-4" />
+                      <span className="sr-only">Editar</span>
                     </Button>
+
+                    {/* Delete (ícono) */}
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleDelete(pkg.id)}
-                      className="flex items-center gap-1"
+                      aria-label="Eliminar"
+                      className="p-2"
                     >
-                      <HiTrash className="w-4 h-4" /> Eliminar
+                      <HiTrash className="w-4 h-4" />
+                      <span className="sr-only">Eliminar</span>
                     </Button>
                   </div>
                 </TableCell>
@@ -222,45 +298,96 @@ export default function PackageTableAdmin() {
         </Table>
       </div>
 
+      {/* --- MOBILE: barra de orden + cards --- */}
+      <div className="md:hidden px-4 pt-2 pb-3 sticky top-0 bg-white/90 dark:bg-black/50 backdrop-blur z-10">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleSortToggle('created_at')}
+            className={`flex-1 text-sm px-3 py-2 rounded-md border transition
+              ${sortKey === 'created_at'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200'}`}
+            title="Ordenar por Fecha"
+          >
+            Fecha {sortKey === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+          </button>
+
+          <button
+            onClick={() => handleSortToggle('user_fullname')}
+            className={`flex-1 text-sm px-3 py-2 rounded-md border transition
+              ${sortKey === 'user_fullname'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200'}`}
+            title="Ordenar por Cliente"
+          >
+            Cliente {sortKey === 'user_fullname' && (sortDirection === 'asc' ? '↑' : '↓')}
+          </button>
+        </div>
+      </div>
+
       {/* Mobile Cards */}
       <div className="block md:hidden p-4 space-y-4">
-        {filteredPackages.map((pkg) => (
+        {sortedPackages.map((pkg) => (
           <div key={pkg.id} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm">
-            <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Fecha:</strong> {formatDate(pkg.created_at)}</p>
-            <p className="text-sm text-blue-600 dark:text-blue-400 font-medium"><strong>Tracking:</strong> {pkg.package_tracking_id}</p>
+            {/* Tap en “Fecha” o “Cliente” para alternar el orden */}
+            <p
+              className="text-sm text-gray-600 dark:text-gray-300 active:opacity-70"
+              role="button"
+              title="Tocar para ordenar por fecha"
+              onClick={() => handleSortToggle('created_at')}
+            >
+              <strong>Fecha:</strong> {formatDate(pkg.created_at)}
+            </p>
+
+            <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+              <strong>Tracking:</strong> {pkg.package_tracking_id}
+            </p>
+
             <p className="text-sm text-gray-600 dark:text-gray-300">
               <strong>Estado:</strong>{' '}
               <Badge size="sm" color={getStatusColor(pkg.status_name)}>{pkg.status_name}</Badge>
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-300"><strong>Cliente:</strong>{' '}
+
+            <p
+              className="text-sm text-gray-600 dark:text-gray-300 active:opacity-70"
+              role="button"
+              title="Tocar para ordenar por cliente"
+              onClick={() => handleSortToggle('user_fullname')}
+            >
+              <strong>Cliente:</strong>{' '}
               <button onClick={() => navigate(`/users/${pkg.user_id}`)} className="text-blue-600 hover:underline dark:text-blue-400">
                 {pkg.user_fullname}
               </button>
             </p>
 
             <div className="mt-3 flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => handleEdit(pkg.id)}>Actualizar</Button>
+              {/* Edit (ícono) */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleEdit(pkg.id)}
+                aria-label="Editar"
+                className="p-2"
+              >
+                <HiPencil className="w-4 h-4" />
+                <span className="sr-only">Editar</span>
+              </Button>
+
+              {/* Delete (ícono) */}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleDelete(pkg.id)}
-                className="flex items-center gap-1"
+                aria-label="Eliminar"
+                className="p-2"
               >
                 <HiTrash className="w-4 h-4" />
+                <span className="sr-only">Eliminar</span>
               </Button>
             </div>
           </div>
         ))}
       </div>
-
-      {/* Botón flotante (FAB) */}
-      <button
-        onClick={() => navigate('/create-package')}
-        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-transform duration-200 hover:scale-110"
-        title="Crear paquete"
-      >
-        <HiPlus className="w-6 h-6" />
-      </button>
     </div>
   );
 }

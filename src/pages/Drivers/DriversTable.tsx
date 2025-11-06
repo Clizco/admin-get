@@ -1,4 +1,5 @@
 import { useEffect, useState, ChangeEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Table,
@@ -9,6 +10,7 @@ import {
 } from '../../components/ui/table';
 import Button from '../../components/ui/button/Button';
 import Select from '../../components/form/Select';
+import { HiPencil, HiTrash } from 'react-icons/hi';
 
 interface Driver {
   id: number;
@@ -29,6 +31,7 @@ const driversUrl = `${apiUrl}/drivers/drivers/all`;
 const provincesUrl = `${apiUrl}/provinces/provinces/all`;
 
 export default function DriverTable() {
+  const navigate = useNavigate();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [fade, setFade] = useState(false);
@@ -36,7 +39,7 @@ export default function DriverTable() {
   // filtros
   const [searchText, setSearchText] = useState<string>('');
   const [selectedProvince, setSelectedProvince] = useState<string>('Todas');
-  const [selectedDate] = useState<string>(''); // yyyy-mm-dd (guardado por si luego lo usas)
+  const [selectedDate] = useState<string>(''); // yyyy-mm-dd
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,9 +77,7 @@ export default function DriverTable() {
   };
 
   const handleEdit = (driverId: number) => {
-    console.log(`Editar conductor con ID: ${driverId}`);
-    // Ejemplo si luego quieres ruta:
-    // navigate(`/drivers/edit/${driverId}`)
+    navigate(`/drivers/edit/${driverId}`);
   };
 
   // aplicar filtros en memoria
@@ -136,7 +137,7 @@ export default function DriverTable() {
           />
         </div>
 
-        {/* Slot libre para una acción futura (ej: botón agregar conductor, fecha, etc.) */}
+        {/* Slot libre futuro */}
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
             &nbsp;
@@ -163,37 +164,37 @@ export default function DriverTable() {
               <TableRow>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Nombre
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Teléfono
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Email
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Provincia
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Fecha de registro
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Acción
                 </TableCell>
@@ -203,40 +204,49 @@ export default function DriverTable() {
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {filteredDrivers.map((driver) => (
                 <TableRow key={driver.id}>
-                  <TableCell className="text-gray-700 dark:text-white">
+                  <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                     {driver.driver_name}
                   </TableCell>
-                  <TableCell className="text-gray-700 dark:text-white">
+                  <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                     {driver.driver_phonenumber}
                   </TableCell>
-                  <TableCell className="text-gray-700 dark:text-white">
+                  <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                     {driver.driver_email}
                   </TableCell>
-                  <TableCell className="text-gray-700 dark:text-white">
+                  <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                     {getProvinceName(driver.driver_province)}
                   </TableCell>
-                  <TableCell className="text-gray-700 dark:text-white">
+                  <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                     {new Date(driver.created_at).toLocaleDateString('es-ES', {
                       day: '2-digit',
                       month: '2-digit',
                       year: 'numeric',
                     })}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-5 py-3 text-start">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {/* Edit (ícono) */}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleEdit(driver.id)}
+                        aria-label="Editar"
+                        className="p-2"
                       >
-                        Editar
+                        <HiPencil className="w-4 h-4" />
+                        <span className="sr-only">Editar</span>
                       </Button>
+
+                      {/* Delete (ícono) */}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleDelete(driver.id)}
+                        aria-label="Eliminar"
+                        className="p-2"
                       >
-                        Eliminar
+                        <HiTrash className="w-4 h-4" />
+                        <span className="sr-only">Eliminar</span>
                       </Button>
                     </div>
                   </TableCell>
@@ -261,21 +271,21 @@ export default function DriverTable() {
           filteredDrivers.map((driver) => (
             <div
               key={driver.id}
-              className="border rounded-lg p-4 text-sm bg-white dark:bg-white/[0.05] border-gray-200 dark:border-white/[0.05] space-y-1"
+              className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm"
             >
-              <p className="text-gray-700 dark:text-white">
+              <p className="text-sm text-gray-700 dark:text-white">
                 <strong>Nombre:</strong> {driver.driver_name}
               </p>
-              <p className="text-gray-700 dark:text-white">
+              <p className="text-sm text-gray-700 dark:text-white">
                 <strong>Teléfono:</strong> {driver.driver_phonenumber}
               </p>
-              <p className="text-gray-700 dark:text-white">
+              <p className="text-sm text-gray-700 dark:text-white">
                 <strong>Email:</strong> {driver.driver_email}
               </p>
-              <p className="text-gray-700 dark:text-white">
+              <p className="text-sm text-gray-700 dark:text-white">
                 <strong>Provincia:</strong> {getProvinceName(driver.driver_province)}
               </p>
-              <p className="text-gray-700 dark:text-white">
+              <p className="text-sm text-gray-700 dark:text-white">
                 <strong>Fecha:</strong>{' '}
                 {new Date(driver.created_at).toLocaleDateString('es-ES', {
                   day: '2-digit',
@@ -284,20 +294,29 @@ export default function DriverTable() {
                 })}
               </p>
 
-              <div className="pt-2 flex gap-2">
+              <div className="mt-3 flex gap-2">
+                {/* Edit (ícono) */}
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => handleEdit(driver.id)}
+                  aria-label="Editar"
+                  className="p-2"
                 >
-                  Editar
+                  <HiPencil className="w-4 h-4" />
+                  <span className="sr-only">Editar</span>
                 </Button>
+
+                {/* Delete (ícono) */}
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => handleDelete(driver.id)}
+                  aria-label="Eliminar"
+                  className="p-2"
                 >
-                  Eliminar
+                  <HiTrash className="w-4 h-4" />
+                  <span className="sr-only">Eliminar</span>
                 </Button>
               </div>
             </div>
