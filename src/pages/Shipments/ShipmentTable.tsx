@@ -412,23 +412,7 @@ export default function ShipmentTable() {
     setSelectedShipment(null);
   };
 
-  // acciones API
-  const updateShipmentStatus = async (shipmentId: number, newStatus: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.put(
-        `${apiUrl}/shipments/shipments/update-status/${shipmentId}`,
-        { shipment_status: newStatus },
-        { headers: token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : undefined }
-      );
-      setShipments((prev) =>
-        prev.map((s) => (s.id === shipmentId ? { ...s, shipment_status: newStatus } : s))
-      );
-    } catch (e: any) {
-      console.error("Error actualizando estado:", e);
-      alert(e?.response?.data?.message || "No se pudo actualizar el estado");
-    }
-  };
+
 
   const deleteShipment = async (shipmentId: number) => {
     const s = shipments.find((x) => x.id === shipmentId);
