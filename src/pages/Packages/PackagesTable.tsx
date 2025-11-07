@@ -36,7 +36,7 @@ interface Package {
   user_fullname: string;
 }
 
-type SortKey = 'created_at' | 'user_fullname';
+type SortKey = 'created_at' | 'user_fullname' | 'status_name';
 type SortDirection = 'asc' | 'desc';
 
 const apiUrl = import.meta.env.VITE_API_URL || '';
@@ -74,9 +74,9 @@ export default function PackageTableAdmin() {
   const [search, setSearch] = useState<string>('');
   const navigate = useNavigate();
 
-  // --- Ordenamiento ---
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  // --- Ordenamiento (por defecto: fecha DESC = más recientes arriba) ---
+  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const fetchPackages = async () => {
     try {
@@ -104,7 +104,9 @@ export default function PackageTableAdmin() {
   };
 
   const handleDelete = async (packageId: number) => {
-    const confirmed = window.confirm('¿Estás seguro de que quieres eliminar este paquete?');
+    const pkg = packages.find(p => p.id === packageId);
+    const label = pkg?.package_tracking_id ? ` (${pkg.package_tracking_id})` : '';
+    const confirmed = window.confirm(`¿Estás seguro de que quieres eliminar este paquete${label}? Esta acción no se puede deshacer.`);
     if (!confirmed) return;
 
     try {
@@ -139,18 +141,23 @@ export default function PackageTableAdmin() {
   }, [packages, selectedStatus, search, filter]);
 
   const sortedPackages = useMemo(() => {
-    if (!sortKey) return filteredPackages;
-
     const sorted = [...filteredPackages].sort((a, b) => {
       if (sortKey === 'created_at') {
         const at = new Date(a.created_at).getTime();
         const bt = new Date(b.created_at).getTime();
         return sortDirection === 'asc' ? at - bt : bt - at;
       }
-      // user_fullname
+      if (sortKey === 'user_fullname') {
+        return sortDirection === 'asc'
+          ? a.user_fullname.localeCompare(b.user_fullname, 'es', { sensitivity: 'base' })
+          : b.user_fullname.localeCompare(a.user_fullname, 'es', { sensitivity: 'base' });
+      }
+      // status_name (alfabético por defecto)
+      const sa = a.status_name ?? '';
+      const sb = b.status_name ?? '';
       return sortDirection === 'asc'
-        ? a.user_fullname.localeCompare(b.user_fullname, 'es', { sensitivity: 'base' })
-        : b.user_fullname.localeCompare(a.user_fullname, 'es', { sensitivity: 'base' });
+        ? sa.localeCompare(sb, 'es', { sensitivity: 'base' })
+        : sb.localeCompare(sa, 'es', { sensitivity: 'base' });
     });
 
     return sorted;
@@ -161,7 +168,8 @@ export default function PackageTableAdmin() {
       setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      setSortDirection('asc');
+      // por UX, al cambiar de columna arrancamos en ASC excepto fecha que ya está en DESC por defecto
+      setSortDirection(key === 'created_at' ? 'desc' : 'asc');
     }
   };
 
@@ -232,7 +240,17 @@ export default function PackageTableAdmin() {
                 </button>
               </TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Tracking</TableCell>
-              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Estado</TableCell>
+              <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => handleSortToggle('status_name')}
+                  className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                  title="Ordenar por estado"
+                >
+                  Estado
+                  <SortIndicator active={sortKey === 'status_name'} />
+                </button>
+              </TableCell>
               <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">
                 <button
                   type="button"
@@ -298,7 +316,7 @@ export default function PackageTableAdmin() {
         </Table>
       </div>
 
-      {/* --- MOBILE: barra de orden + cards --- */}
+      {/* --- MOBILE: barra de orden --- */}
       <div className="md:hidden px-4 pt-2 pb-3 sticky top-0 bg-white/90 dark:bg-black/50 backdrop-blur z-10">
         <div className="flex items-center gap-2">
           <button
@@ -322,6 +340,17 @@ export default function PackageTableAdmin() {
           >
             Cliente {sortKey === 'user_fullname' && (sortDirection === 'asc' ? '↑' : '↓')}
           </button>
+
+          <button
+            onClick={() => handleSortToggle('status_name')}
+            className={`flex-1 text-sm px-3 py-2 rounded-md border transition
+              ${sortKey === 'status_name'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200'}`}
+            title="Ordenar por Estado"
+          >
+            Estado {sortKey === 'status_name' && (sortDirection === 'asc' ? '↑' : '↓')}
+          </button>
         </div>
       </div>
 
@@ -329,7 +358,6 @@ export default function PackageTableAdmin() {
       <div className="block md:hidden p-4 space-y-4">
         {sortedPackages.map((pkg) => (
           <div key={pkg.id} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm">
-            {/* Tap en “Fecha” o “Cliente” para alternar el orden */}
             <p
               className="text-sm text-gray-600 dark:text-gray-300 active:opacity-70"
               role="button"
@@ -343,7 +371,12 @@ export default function PackageTableAdmin() {
               <strong>Tracking:</strong> {pkg.package_tracking_id}
             </p>
 
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p
+              className="text-sm text-gray-600 dark:text-gray-300 active:opacity-70"
+              role="button"
+              title="Tocar para ordenar por estado"
+              onClick={() => handleSortToggle('status_name')}
+            >
               <strong>Estado:</strong>{' '}
               <Badge size="sm" color={getStatusColor(pkg.status_name)}>{pkg.status_name}</Badge>
             </p>
