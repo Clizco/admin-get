@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import Button from "../../components/ui/button/Button";
+import { HiGift, HiClipboardList } from "react-icons/hi";
 
 type UserRow = {
   id: number;
@@ -30,7 +31,7 @@ type LedgerRow = {
   delta: number;
   reason: string | null;
   source: string | null;
-  meta: any; // puede venir string o JSON
+  meta: any;
   expires_at: string | null;
   created_at: string;
 };
@@ -216,7 +217,6 @@ export default function PointsTable() {
         }
       );
 
-      // Normaliza meta (string -> JSON si aplica)
       const normalized: LedgerRow[] = (data ?? []).map((r) => {
         let meta: any = r.meta;
         try {
@@ -317,39 +317,39 @@ export default function PointsTable() {
               <TableRow>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Usuario
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Email
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Teléfono
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Saldo (pts)
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Actualizado
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400"
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
-                  Acción
+                  Acciones
                 </TableCell>
               </TableRow>
             </TableHeader>
@@ -375,7 +375,7 @@ export default function PointsTable() {
                     setGrantReason={setGrantReason}
                     onGrant={() => handleGrant(u.id)}
                     grantLoading={grantLoading}
-                    onCancel={() => setOpenRow(null)} // 👈 FIX cancelar
+                    onCancel={() => setOpenRow(null)}
                   />
                 );
               })}
@@ -400,39 +400,48 @@ export default function PointsTable() {
             return (
               <div
                 key={u.id}
-                className="border rounded-lg p-4 text-sm bg-white dark:bg-white/[0.05] border-gray-200 dark:border-white/[0.05] space-y-2"
+                className="bg-white dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm space-y-2"
               >
-                <p className="text-gray-700 dark:text-white">
+                <p className="text-sm text-gray-700 dark:text-white">
                   <strong>Usuario:</strong> {displayName(u)}
                 </p>
-                <p className="text-gray-700 dark:text-white">
+                <p className="text-sm text-gray-700 dark:text-white">
                   <strong>Email:</strong> {u.user_email}
                 </p>
-                <p className="text-gray-700 dark:text-white">
+                <p className="text-sm text-gray-700 dark:text-white">
                   <strong>Teléfono:</strong> {u.user_phonenumber || "-"}
                 </p>
-                <p className="text-gray-700 dark:text-white">
+                <p className="text-sm text-gray-700 dark:text-white">
                   <strong>Saldo:</strong> {getBalance(u.id)} pts
                 </p>
-                <p className="text-gray-700 dark:text-white">
+                <p className="text-sm text-gray-700 dark:text-white">
                   <strong>Actualizado:</strong>{" "}
                   {getUpdatedAt(u.id) ? formatDate(getUpdatedAt(u.id)!) : "-"}
                 </p>
 
-                <div className="pt-2 flex gap-2">
+                <div className="mt-3 flex gap-2">
+                  {/* Dar puntos (ícono outline) */}
                   <Button
                     size="sm"
-                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    variant="outline"
                     onClick={() => openGrantFor(u.id)}
+                    aria-label="Dar puntos"
+                    className="p-2 flex-1"
                   >
-                    Dar puntos
+                    <HiGift className="w-4 h-4" />
+                    <span className="sr-only">Dar puntos</span>
                   </Button>
+
+                  {/* Ver movimientos (ícono outline) */}
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => openLedgerModal(u.id)}
+                    aria-label="Ver movimientos"
+                    className="p-2"
                   >
-                    Ver movimientos
+                    <HiClipboardList className="w-4 h-4" />
+                    <span className="sr-only">Ver movimientos</span>
                   </Button>
                 </div>
 
@@ -497,8 +506,8 @@ export default function PointsTable() {
               </Button>
             </div>
 
+            {/* Totales + tabla de movimientos */}
             <div className="p-4">
-              {/* Totales rápidos */}
               <div className="mb-3 text-sm text-gray-700 dark:text-white/80 flex gap-4">
                 <span>
                   <strong>Acreditado:</strong> +{totals.sumIn} pts
@@ -590,7 +599,6 @@ export default function PointsTable() {
                 </table>
               </div>
 
-              {/* Paginación */}
               <div className="mt-3 flex items-center justify-between">
                 <span className="text-xs text-gray-500 dark:text-white/50">
                   offset {ledgerOffset} · limit {ledgerLimit}
@@ -639,7 +647,7 @@ function FragmentRow(props: {
   setGrantReason: (v: string) => void;
   onGrant: () => void;
   grantLoading: boolean;
-  onCancel: () => void; // 👈 agregado
+  onCancel: () => void;
 }) {
   const {
     isOpen,
@@ -656,19 +664,25 @@ function FragmentRow(props: {
     setGrantReason,
     onGrant,
     grantLoading,
-    onCancel, // 👈 agregado
+    onCancel,
   } = props;
 
   return (
     <>
       <TableRow>
-        <TableCell className="text-gray-700 dark:text-white">
+        <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
           {displayName}
         </TableCell>
-        <TableCell className="text-gray-700 dark:text-white">{email}</TableCell>
-        <TableCell className="text-gray-700 dark:text-white">{phone}</TableCell>
-        <TableCell className="text-gray-700 dark:text-white">{balance}</TableCell>
-        <TableCell className="text-gray-700 dark:text-white">
+        <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
+          {email}
+        </TableCell>
+        <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
+          {phone}
+        </TableCell>
+        <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
+          {balance}
+        </TableCell>
+        <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
           {updatedAt
             ? new Date(updatedAt).toLocaleDateString("es-ES", {
                 day: "2-digit",
@@ -677,17 +691,30 @@ function FragmentRow(props: {
               })
             : "-"}
         </TableCell>
-        <TableCell>
+        <TableCell className="px-5 py-3 text-start">
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Dar puntos (ícono outline) */}
             <Button
               size="sm"
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              variant="outline"
               onClick={onOpen}
+              aria-label="Dar puntos"
+              className="p-2"
             >
-              Dar puntos
+              <HiGift className="w-4 h-4" />
+              <span className="sr-only">Dar puntos</span>
             </Button>
-            <Button size="sm" variant="outline" onClick={onViewLedger}>
-              Ver movimientos
+
+            {/* Ver movimientos (ícono outline) */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onViewLedger}
+              aria-label="Ver movimientos"
+              className="p-2"
+            >
+              <HiClipboardList className="w-4 h-4" />
+              <span className="sr-only">Ver movimientos</span>
             </Button>
           </div>
         </TableCell>
@@ -695,7 +722,7 @@ function FragmentRow(props: {
 
       {isOpen && (
         <TableRow>
-          <td colSpan={6}>
+          <td colSpan={6} className="px-5 py-3">
             <div className="rounded-md border p-3 bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.05]">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <input

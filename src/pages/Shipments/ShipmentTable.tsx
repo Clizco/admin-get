@@ -10,6 +10,7 @@ import {
 import Badge from "../../components/ui/badge/Badge";
 import Select from "../../components/form/Select";
 import Button from "../../components/ui/button/Button";
+import { HiEye, HiTrash } from "react-icons/hi";
 
 /* =======================
    Tipos
@@ -132,7 +133,7 @@ function ShipmentDetailsModal({
               </span>
             </h2>
 
-            <Badge size="sm" color={colorByStatus}>{shipment.shipment_status}</Badge>
+            <Badge size="sm" color={colorByStatus as any}>{shipment.shipment_status}</Badge>
           </div>
 
           <button
@@ -234,7 +235,7 @@ export default function ShipmentTable() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [provinces, setProvinces] = useState<Record<number, string>>({});
   const [allProvinces, setAllProvinces] = useState<Province[]>([]);
-  const [usersMap, setUsersMap] = useState<Record<number, string>>({}); // id -> display
+  const [usersMap, setUsersMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [fade, setFade] = useState(false);
 
@@ -262,7 +263,7 @@ export default function ShipmentTable() {
     fetchProvinces();
   }, []);
 
-  // fetch usuarios (para “Creado por”)
+  // fetch usuarios
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -307,8 +308,8 @@ export default function ShipmentTable() {
 
   // helpers
   const getProvinceName = (provinceId: string) => provinces[Number(provinceId)] || "Desconocido";
-  const getUserDisplay = (userId: number) => usersMap[userId] || `Usuario #${userId}`;
 
+  // abrir/cerrar
   const openDetails = (shipment: Shipment) => {
     setSelectedShipment(shipment);
     setIsDetailsOpen(true);
@@ -327,8 +328,6 @@ export default function ShipmentTable() {
         { shipment_status: newStatus },
         { headers: token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : undefined }
       );
-
-      // sync local
       setShipments((prev) =>
         prev.map((s) => (s.id === shipmentId ? { ...s, shipment_status: newStatus } : s))
       );
@@ -344,9 +343,7 @@ export default function ShipmentTable() {
       await axios.delete(`${apiUrl}/shipments/shipments/delete/${shipmentId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-
       setShipments((prev) => prev.filter((s) => s.id !== shipmentId));
-      // si estamos viendo ese envío, cerramos modal
       if (selectedShipment?.id === shipmentId) closeDetails();
     } catch (e: any) {
       console.error("Error eliminando envío:", e);
@@ -361,6 +358,14 @@ export default function ShipmentTable() {
     return matchStatus && matchProvince;
   });
 
+  // color del badge
+  const badgeColor = (status: string): "success" | "warning" | "error" | undefined => {
+    if (status === "Active") return "success";
+    if (status === "Pending") return "warning";
+    if (status === "Delivered") return "success";
+    return undefined;
+  };
+
   return (
     <>
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] relative">
@@ -372,7 +377,7 @@ export default function ShipmentTable() {
             onChange={(value: string) => setStatusFilter(value)}
             options={[{ value: "", label: "Todos" }, ...statusOptions]}
           />
-          <Select
+        <Select
             label="Filtrar por destino"
             value={provinceFilter}
             onChange={(value: string) => setProvinceFilter(value)}
@@ -393,35 +398,56 @@ export default function ShipmentTable() {
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                 <TableRow>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Código</TableCell>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Fecha</TableCell>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Estado</TableCell>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Origen</TableCell>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Destino</TableCell>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Remitente</TableCell>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Descripción</TableCell>
-                  <TableCell isHeader className="text-start text-gray-500 font-medium text-theme-xs dark:text-gray-400">Acciones</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Código</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Fecha</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Estado</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Origen</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Destino</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Remitente</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Descripción</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Acciones</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                 {filteredShipments.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="text-gray-700 dark:text-white">{s.shipment_code}</TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">{formatDate(s.shipment_date)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        size="sm"
-                        color={s.shipment_status === "Active" ? "success" : s.shipment_status === "Pending" ? "warning" : "error"}
-                      >
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{s.shipment_code}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{formatDate(s.shipment_date)}</TableCell>
+                    <TableCell className="px-5 py-3">
+                      <Badge size="sm" color={badgeColor(s.shipment_status)}>
                         {s.shipment_status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">{getProvinceName(s.shipment_origin)}</TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">{getProvinceName(s.shipment_destination)}</TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">{s.shipment_sender_name}</TableCell>
-                    <TableCell className="text-gray-700 dark:text-white max-w-[200px] truncate">{s.shipment_description}</TableCell>
-                    <TableCell className="text-gray-700 dark:text-white">
-                      <Button size="sm" variant="outline" onClick={() => openDetails(s)}>Ver Detalles</Button>
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{getProvinceName(s.shipment_origin)}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{getProvinceName(s.shipment_destination)}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{s.shipment_sender_name}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white max-w-[240px] truncate">{s.shipment_description}</TableCell>
+                    <TableCell className="px-5 py-3 text-start">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Ver Detalles (ícono) */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDetails(s)}
+                          aria-label="Ver detalles"
+                          className="p-2"
+                        >
+                          <HiEye className="w-4 h-4" />
+                          <span className="sr-only">Ver detalles</span>
+                        </Button>
+
+                        {/* Eliminar (ícono) */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deleteShipment(s.id)}
+                          aria-label="Eliminar"
+                          className="p-2"
+                        >
+                          <HiTrash className="w-4 h-4" />
+                          <span className="sr-only">Eliminar</span>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -438,28 +464,43 @@ export default function ShipmentTable() {
             <div className="text-center text-gray-500 dark:text-white/70">No hay envíos registrados.</div>
           ) : (
             filteredShipments.map((s) => (
-              <div key={s.id} className="border rounded-lg p-4 text-sm bg-white dark:bg-white/5 border-gray-200 dark:border-white/[0.05] space-y-2 shadow-sm">
+              <div key={s.id} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="text-gray-700 dark:text-white">
                     <p className="font-medium text-blue-600 dark:text-blue-400">{s.shipment_code}</p>
                     <p className="text-xs text-gray-500 dark:text-white/50">{formatDate(s.shipment_date)}</p>
                   </div>
-                  <Badge
-                    size="sm"
-                    color={s.shipment_status === "Active" ? "success" : s.shipment_status === "Pending" ? "warning" : "error"}
-                  >
-                    {s.shipment_status}
-                  </Badge>
+                  <Badge size="sm" color={badgeColor(s.shipment_status)}>{s.shipment_status}</Badge>
                 </div>
 
-                <p className="text-gray-700 dark:text-white text-sm"><strong>Origen:</strong> {getProvinceName(s.shipment_origin)}</p>
+                <p className="text-gray-700 dark:text-white text-sm mt-1"><strong>Origen:</strong> {getProvinceName(s.shipment_origin)}</p>
                 <p className="text-gray-700 dark:text-white text-sm"><strong>Destino:</strong> {getProvinceName(s.shipment_destination)}</p>
                 <p className="text-gray-700 dark:text-white text-sm"><strong>Remitente:</strong> {s.shipment_sender_name}</p>
                 <p className="text-gray-700 dark:text-white text-sm leading-snug break-words"><strong>Descripción:</strong> {s.shipment_description}</p>
 
-                <div className="pt-2">
-                  <Button size="sm" variant="outline" onClick={() => openDetails(s)} className="w-full">
-                    Ver Detalles
+                <div className="mt-3 flex gap-2">
+                  {/* Ver Detalles (ícono) */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openDetails(s)}
+                    aria-label="Ver detalles"
+                    className="p-2 flex-1"
+                  >
+                    <HiEye className="w-4 h-4" />
+                    <span className="sr-only">Ver detalles</span>
+                  </Button>
+
+                  {/* Eliminar (ícono) */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteShipment(s.id)}
+                    aria-label="Eliminar"
+                    className="p-2"
+                  >
+                    <HiTrash className="w-4 h-4" />
+                    <span className="sr-only">Eliminar</span>
                   </Button>
                 </div>
               </div>
@@ -473,9 +514,9 @@ export default function ShipmentTable() {
         open={isDetailsOpen}
         onClose={closeDetails}
         shipment={selectedShipment}
-        getProvinceName={getProvinceName}
+        getProvinceName={(id) => provinces[Number(id)] || "Desconocido"}
         formatDate={formatDate}
-        getUserDisplay={getUserDisplay}
+        getUserDisplay={(uid) => usersMap[uid] || `Usuario #${uid}`}
         onUpdateStatus={updateShipmentStatus}
         onDeleteShipment={deleteShipment}
       />

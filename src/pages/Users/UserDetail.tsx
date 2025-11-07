@@ -6,6 +6,7 @@ import Select from '../../components/form/Select';
 import Button from '../../components/ui/button/Button';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { Lock } from 'lucide-react';
 
 interface Province {
   id: number;
@@ -18,7 +19,7 @@ interface User {
   user_lastname: string;
   user_email: string;
   user_phonenumber: string;
-  user_prefix: string;
+  user_prefix: string;      // <-- Código de Get
   user_province: number;
   role_id: number;
 }
@@ -31,6 +32,10 @@ export default function UserDetail() {
   const [user, setUser] = useState<User | null>(null);
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Si hay id, estamos editando => bloquear user_prefix
+  const isEditing = Boolean(id);
+  const isPrefixLocked = isEditing; // "no se puede editar una vez creado"
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,12 +59,24 @@ export default function UserDetail() {
   }, [id]);
 
   const handleChange = (field: keyof User, value: any) => {
+    // Evitar cambios en el código de Get una vez creado
+    if (field === 'user_prefix' && isPrefixLocked) return;
+
     if (user) setUser({ ...user, [field]: value });
   };
 
   const handleSave = async () => {
     try {
-      await axios.put(`${apiUrl}/users/users/update/${id}`, user);
+      if (!user) return;
+
+      // Evitar enviar user_prefix si está bloqueado (defensa extra)
+      const payload: Partial<User> = { ...user };
+      if (isPrefixLocked) {
+        // no mandamos user_prefix para que el backend no lo toque
+        delete (payload as any).user_prefix;
+      }
+
+      await axios.put(`${apiUrl}/users/users/update/${id}`, payload);
       toast.success('Usuario actualizado correctamente');
       navigate('/users');
     } catch (error) {
@@ -80,7 +97,7 @@ export default function UserDetail() {
       toast.error('No se pudo eliminar el usuario');
     }
   }
-  
+
   if (loading || !user) {
     return <div className="p-6 text-gray-500 dark:text-white/70">Cargando datos del usuario...</div>;
   }
@@ -115,11 +132,34 @@ export default function UserDetail() {
           value={user.user_phonenumber}
           onChange={(e) => handleChange('user_phonenumber', e.target.value)}
         />
-        <Input
-          label="Prefijo"
-          value={user.user_prefix}
-          onChange={(e) => handleChange('user_prefix', e.target.value)}
-        />
+
+        {/* CÓDIGO DE GET (user_prefix) BLOQUEADO SI ES EDICIÓN */}
+        <div>
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+              Código de Get (prefijo)
+            </label>
+            {isPrefixLocked && (
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-white/60">
+                <Lock className="w-3.5 h-3.5" /> bloqueado
+              </span>
+            )}
+          </div>
+
+          <Input
+            value={user.user_prefix}
+            onChange={(e) => handleChange('user_prefix', e.target.value)}
+            disabled={isPrefixLocked}              // <-- deshabilitado al editar
+            placeholder="Ej: GET-123"
+            className={isPrefixLocked ? 'opacity-70 cursor-not-allowed' : ''}
+          />
+
+          {isPrefixLocked && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-white/60">
+              Este código no puede modificarse una vez creado.
+            </p>
+          )}
+        </div>
 
         <Select
           label="Provincia"
@@ -141,7 +181,6 @@ export default function UserDetail() {
             { value: '3', label: 'Conductor' },
           ]}
         />
-        
 
         <div className="pt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => navigate('/users')}>
@@ -153,7 +192,6 @@ export default function UserDetail() {
           <Button variant="outline" onClick={handleDelete}>
             Eliminar
           </Button>
-
         </div>
       </div>
     </motion.div>
