@@ -338,18 +338,28 @@ export default function ShipmentTable() {
   };
 
   const deleteShipment = async (shipmentId: number) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`${apiUrl}/shipments/shipments/delete/${shipmentId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      setShipments((prev) => prev.filter((s) => s.id !== shipmentId));
-      if (selectedShipment?.id === shipmentId) closeDetails();
-    } catch (e: any) {
-      console.error("Error eliminando envío:", e);
-      alert(e?.response?.data?.message || "No se pudo eliminar el envío");
-    }
-  };
+  // Mensaje con el código del envío (si está disponible)
+  const s = shipments.find((x) => x.id === shipmentId);
+  const label = s?.shipment_code ? ` (${s.shipment_code})` : '';
+
+  if (!confirm(`¿Estás seguro de eliminar este envío${label}? Esta acción no se puede deshacer.`)) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem("token");
+    await axios.delete(`${apiUrl}/shipments/shipments/delete/${shipmentId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    setShipments((prev) => prev.filter((x) => x.id !== shipmentId));
+    if (selectedShipment?.id === shipmentId) closeDetails();
+  } catch (e: any) {
+    console.error("Error eliminando envío:", e);
+    alert(e?.response?.data?.message || "No se pudo eliminar el envío");
+  }
+};
+
 
   // filtros frontend
   const filteredShipments = shipments.filter((s) => {
