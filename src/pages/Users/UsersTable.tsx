@@ -288,11 +288,21 @@ export default function UserTable() {
                 key={user.id}
                 className="relative bg-white dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm space-y-1"
               >
-                {/* Ojo arriba derecha que edita */}
-                <HiEye
-                  className="absolute right-4 top-4 w-5 h-5 text-gray-400 hover:text-blue-500 cursor-pointer"
-                  onClick={() => handleEditUser(user.id)}
-                />
+                {/* ICONOS SUPERIORES: Trash a la IZQUIERDA y Ojo a la derecha */}
+                <div className="absolute right-4 top-4 flex items-center gap-3">
+                  <HiTrash
+                    className="w-5 h-5 text-gray-400 hover:text-blue-500 cursor-pointer"
+                    onClick={() => handleDeleteUser(user.id)}
+                    aria-label="Eliminar"
+                    title="Eliminar usuario"
+                  />
+                  <HiEye
+                    className="w-5 h-5 text-gray-400 hover:text-blue-500 cursor-pointer"
+                    onClick={() => handleEditUser(user.id)}
+                    aria-label="Editar"
+                    title="Editar usuario"
+                  />
+                </div>
 
                 <p className="text-sm text-gray-700 dark:text-white">
                   <strong>Nombre:</strong> {user.user_firstname}{' '}
@@ -317,18 +327,6 @@ export default function UserTable() {
                     {rb.label}
                   </Badge>
                 </p>
-
-                <div className="mt-3 flex gap-2 justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDeleteUser(user.id)}
-                    aria-label="Eliminar"
-                    className="p-2"
-                  >
-                    <HiTrash className="w-4 h-4" />
-                  </Button>
-                </div>
               </div>
             )
           })
