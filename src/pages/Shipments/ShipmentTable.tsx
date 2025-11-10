@@ -167,10 +167,12 @@ function ShipmentDetailsModal({
             </Badge>
           </div>
 
+          {/* X de cierre */}
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition"
             aria-label="Cerrar"
+            title="Cerrar"
           >
             <svg
               className="w-5 h-5"
@@ -186,7 +188,7 @@ function ShipmentDetailsModal({
 
         {/* Contenido */}
         <div className="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-1">
-          {/* Remitente (incluye Pickup con dirección) */}
+          {/* Remitente */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
             <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
               Remitente
@@ -214,7 +216,7 @@ function ShipmentDetailsModal({
             </div>
           </section>
 
-          {/* Destinatario (incluye Delivery con dirección) */}
+          {/* Destinatario */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
             <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
               Destinatario
@@ -252,7 +254,7 @@ function ShipmentDetailsModal({
             </p>
           </section>
 
-          {/* ✅ NUEVO: Interno */}
+          {/* Interno */}
           <section className="bg-gray-50 dark:bg-white/[0.03] rounded-lg p-3 border border-gray-200 dark:border-white/[0.06]">
             <h3 className="text-xs uppercase font-medium text-gray-500 dark:text-white/50 mb-2">
               Interno
@@ -270,32 +272,35 @@ function ShipmentDetailsModal({
           </section>
         </div>
 
-        {/* Footer */}
+        {/* Footer (solo íconos) */}
         <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-gray-200 dark:border-white/[0.08]">
-          {/* Ver en Maps */}
+          {/* Maps (ícono) */}
           <a
             className="ml-auto"
             target="_blank"
             rel="noreferrer"
             href={mapsHref(mapsFrom, mapsTo)}
+            aria-label="Abrir en Google Maps"
+            title="Abrir en Google Maps"
           >
-            <Button size="sm" variant="outline">
-              Ver en Maps
+            <Button size="sm" variant="outline" className="p-2">
+              <HiMap className="w-4 h-4" />
             </Button>
           </a>
 
+          {/* Eliminar (ícono) */}
           <Button
             size="sm"
             variant="outline"
-            className="border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+            className="p-2 border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
             onClick={onDelete}
+            aria-label="Eliminar envío"
+            
           >
-            Eliminar envío
+            <HiTrash className="w-4 h-4" />
           </Button>
 
-          <Button size="sm" variant="outline" onClick={onClose}>
-            Cerrar
-          </Button>
+          {/* ❌ botón 'Cerrar' eliminado */}
         </div>
       </div>
     </div>
@@ -411,8 +416,6 @@ export default function ShipmentTable() {
     setIsDetailsOpen(false);
     setSelectedShipment(null);
   };
-
-
 
   const deleteShipment = async (shipmentId: number) => {
     const s = shipments.find((x) => x.id === shipmentId);
