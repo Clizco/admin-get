@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// src/views/admin/ShipmentTable.tsx
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
   Table,
@@ -24,7 +25,6 @@ interface Shipment {
   shipment_origin: string;          // province id (string numérica)
   shipment_destination: string;     // province id (string numérica)
 
-  // ✅ NUEVOS (traídos del board del driver)
   shipment_origin_address?: string | null;
   shipment_destination_address?: string | null;
 
@@ -34,7 +34,13 @@ interface Shipment {
   shipment_receiver_phonenumber: string;
   shipment_description: string;
   shipment_assigned_user: string | null;
-  shipment_user: number;            // id del creador
+  shipment_user: number;
+
+  // ✅ nuevos para tiempos y driver
+  shipment_driver?: number | null;
+  pickup_started_at?: string | null;
+  arrived_at?: string | null;
+  travel_time_seconds?: number | null;
 }
 
 interface Province {
@@ -47,6 +53,13 @@ interface UserRow {
   user_firstname?: string;
   user_lastname?: string;
   user_email: string;
+}
+
+interface DriverRow {
+  id: number;
+  driver_name: string;
+  driver_email?: string;
+  driver_phonenumber?: string;
 }
 
 /* =======================
@@ -69,7 +82,6 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// ✅ fecha + hora en 24h
 const formatDateTime = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleString("es-ES", {
@@ -82,12 +94,19 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
-// ✅ helpers traídos/adaptados del DriverShipmentsBoard
 const telHref = (phone?: string) =>
   phone ? `tel:${phone.replace(/\s+/g, "")}` : undefined;
 
 const mapsHref = (from: string, to: string) =>
   `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&travelmode=driving`;
+
+// hh:mm:ss
+const hhmmss = (secs: number) => {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+};
 
 /* =======================
    Modal de Detalles
@@ -100,6 +119,7 @@ interface ShipmentDetailsModalProps {
   // helpers
   getProvinceName: (id: string) => string;
   getUserDisplay: (userId: number) => string;
+  getDriverDisplay: (driverId?: number | null) => string;
 
   // acciones
   onDeleteShipment: (shipmentId: number) => Promise<void>;
@@ -111,18 +131,48 @@ function ShipmentDetailsModal({
   shipment,
   getProvinceName,
   getUserDisplay,
+  getDriverDisplay,
   onDeleteShipment,
 }: ShipmentDetailsModalProps) {
+  const [elapsed, setElapsed] = useState<number>(0);
+
+  // cronómetro: corre cuando está "En camino para Pickup" y hay pickup_started_at
+  useEffect(() => {
+    let t: ReturnType<typeof setInterval> | undefined;
+
+    if (
+      open &&
+      shipment &&
+      shipment.pickup_started_at &&
+      shipment.shipment_status?.toString().toUpperCase() === "EN CAMINO PARA PICKUP"
+    ) {
+      const start = new Date(shipment.pickup_started_at).getTime();
+      const tick = () => {
+        setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000)));
+      };
+      tick();
+      t = setInterval(tick, 1000);
+    } else {
+      setElapsed(0);
+    }
+
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [open, shipment?.pickup_started_at, shipment?.shipment_status]);
+
   if (!open || !shipment) return null;
 
+  const statusUpper = (shipment.shipment_status || "").toString().toUpperCase();
   const colorByStatus =
-    shipment.shipment_status === "Active"
+    statusUpper === "ACTIVE" || statusUpper === "EN CAMINO PARA PICKUP"
       ? "success"
-      : shipment.shipment_status === "Pending"
+      : statusUpper === "PENDING"
       ? "warning"
-      : "error";
+      : statusUpper === "DELIVERED" || statusUpper === "ENTREGADO"
+      ? "success"
+      : "info";
 
-  // helpers para etiquetas y Maps
   const originName = getProvinceName(shipment.shipment_origin);
   const destName = getProvinceName(shipment.shipment_destination);
 
@@ -141,6 +191,20 @@ function ShipmentDetailsModal({
     if (!confirm(`¿Eliminar envío ${shipment.shipment_code}?`)) return;
     await onDeleteShipment(shipment.id);
   };
+
+  // mostrar tiempo total si llegó o entregó
+  const finishedSeconds =
+    typeof shipment.travel_time_seconds === "number"
+      ? shipment.travel_time_seconds
+      : shipment.arrived_at && shipment.pickup_started_at
+      ? Math.max(
+          0,
+          Math.floor(
+            (new Date(shipment.arrived_at).getTime() -
+              new Date(shipment.pickup_started_at).getTime()) / 1000
+          )
+        )
+      : null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
@@ -268,13 +332,31 @@ function ShipmentDetailsModal({
                 <span className="font-semibold">Creado el:</span>{" "}
                 {formatDateTime(shipment.shipment_date)}
               </p>
+              <p>
+                <span className="font-semibold">Conductor asignado:</span>{" "}
+                {getDriverDisplay(shipment.shipment_driver ?? null)}
+              </p>
+
+              {/* Tiempo */}
+              {shipment.pickup_started_at && statusUpper === "EN CAMINO PARA PICKUP" && (
+                <p>
+                  <span className="font-semibold">Tiempo en ruta:</span>{" "}
+                  {hhmmss(elapsed)}
+                </p>
+              )}
+
+              {finishedSeconds !== null && statusUpper !== "EN CAMINO PARA PICKUP" && (
+                <p>
+                  <span className="font-semibold">Tiempo total:</span>{" "}
+                  {hhmmss(finishedSeconds)}
+                </p>
+              )}
             </div>
           </section>
         </div>
 
         {/* Footer (solo íconos) */}
         <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t border-gray-200 dark:border-white/[0.08]">
-          {/* Maps (ícono) */}
           <a
             className="ml-auto"
             target="_blank"
@@ -288,19 +370,15 @@ function ShipmentDetailsModal({
             </Button>
           </a>
 
-          {/* Eliminar (ícono) */}
           <Button
             size="sm"
             variant="outline"
             className="p-2 border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
             onClick={onDelete}
             aria-label="Eliminar envío"
-            
           >
             <HiTrash className="w-4 h-4" />
           </Button>
-
-          {/* ❌ botón 'Cerrar' eliminado */}
         </div>
       </div>
     </div>
@@ -315,7 +393,8 @@ export default function ShipmentTable() {
   const [provinces, setProvinces] = useState<Record<number, string>>({});
   const [allProvinces, setAllProvinces] = useState<Province[]>([]);
   const [usersMap, setUsersMap] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(false);
+  const [driversMap, setDriversMap] = useState<Record<number, string>>({});
+  const [, setLoading] = useState(false);
   const [fade, setFade] = useState(false);
 
   // filtros
@@ -328,7 +407,7 @@ export default function ShipmentTable() {
 
   // fetch provincias
   useEffect(() => {
-    const fetchProvinces = async () => {
+    (async () => {
       try {
         const { data } = await axios.get<Province[]>(`${apiUrl}/provinces/provinces/all`);
         const map: Record<number, string> = {};
@@ -338,13 +417,12 @@ export default function ShipmentTable() {
       } catch (error) {
         console.error("Error fetching province data:", error);
       }
-    };
-    fetchProvinces();
+    })();
   }, []);
 
   // fetch usuarios
   useEffect(() => {
-    const fetchUsers = async () => {
+    (async () => {
       try {
         const token = localStorage.getItem("token");
         const { data } = await axios.get<UserRow[]>(`${apiUrl}/users/users/all`, {
@@ -359,8 +437,26 @@ export default function ShipmentTable() {
       } catch (e) {
         console.error("Error fetching users:", e);
       }
-    };
-    fetchUsers();
+    })();
+  }, []);
+
+  // ✅ fetch drivers (para mostrar quién tomó el envío)
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const { data } = await axios.get<DriverRow[]>(`${apiUrl}/drivers/drivers/all`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const map: Record<number, string> = {};
+        (data || []).forEach((d) => {
+          map[d.id] = d.driver_name || `Driver ${d.id}`;
+        });
+        setDriversMap(map);
+      } catch (e) {
+        console.error("Error fetching drivers:", e);
+      }
+    })();
   }, []);
 
   // fetch envíos
@@ -389,7 +485,7 @@ export default function ShipmentTable() {
   const getProvinceName = (provinceId: string) =>
     provinces[Number(provinceId)] || "Desconocido";
 
-  // ✅ labels de origen/destino mostrando DIRECCIÓN si existe
+  // labels de origen/destino con dirección si existe
   const originLabel = (s: Shipment) =>
     s.shipment_origin_address?.trim()
       ? `${getProvinceName(s.shipment_origin)} · ${s.shipment_origin_address}`
@@ -400,18 +496,14 @@ export default function ShipmentTable() {
       ? `${getProvinceName(s.shipment_destination)} · ${s.shipment_destination_address}`
       : getProvinceName(s.shipment_destination);
 
-  // ✅ values para Maps (si hay address, usarlo; si no, provincia)
+  // values para Maps (si hay address, usarlo; si no, provincia)
   const mapsFromValue = (s: Shipment) =>
     s.shipment_origin_address?.trim() || getProvinceName(s.shipment_origin);
 
   const mapsToValue = (s: Shipment) =>
     s.shipment_destination_address?.trim() || getProvinceName(s.shipment_destination);
 
-  // abrir/cerrar modal
-  const openDetails = (shipment: Shipment) => {
-    setSelectedShipment(shipment);
-    setIsDetailsOpen(true);
-  };
+ 
   const closeDetails = () => {
     setIsDetailsOpen(false);
     setSelectedShipment(null);
@@ -439,23 +531,30 @@ export default function ShipmentTable() {
     }
   };
 
-  // filtros frontend
-  const filteredShipments = shipments.filter((s) => {
-    const matchStatus = statusFilter ? s.shipment_status === statusFilter : true;
-    const matchProvince = provinceFilter ? String(s.shipment_destination) === provinceFilter : true;
-    return matchStatus && matchProvince;
-  });
+  // filtros
+  const filteredShipments = useMemo(() => {
+    return shipments.filter((s) => {
+      const matchStatus = statusFilter ? s.shipment_status === statusFilter : true;
+      const matchProvince = provinceFilter ? String(s.shipment_destination) === provinceFilter : true;
+      return matchStatus && matchProvince;
+    });
+  }, [shipments, statusFilter, provinceFilter]);
 
   // color del badge
   const badgeColor = (status: string): "success" | "warning" | "error" | undefined => {
-    if (status === "Active") return "success";
-    if (status === "Pending") return "warning";
-    if (status === "Delivered") return "success";
+    const u = (status || "").toUpperCase();
+    if (u === "ACTIVE" || u === "EN CAMINO PARA PICKUP" || u === "ARRIVED") return "success";
+    if (u === "PENDING" || u === "PENDIENTE") return "warning";
+    if (u === "DELIVERED" || u === "ENTREGADO") return "success";
     return undefined;
   };
 
-  const getUserDisplay = (userId: number): string => {
-    return usersMap[userId] || `Usuario ${userId}`;
+
+
+  const getDriverDisplay = (driverId?: number | null): string => {
+    if (!driverId) return "—";
+    return driversMap[driverId] || `Driver ${driverId}`;
+    // si quieres teléfono o email: guarda un driverMapExtra con eso y lo muestras aquí
   };
 
   return (
@@ -482,9 +581,7 @@ export default function ShipmentTable() {
 
         {/* Desktop */}
         <div className={`hidden md:block max-w-full overflow-x-auto p-4 transition-opacity duration-500 ${fade ? "opacity-100" : "opacity-0"}`}>
-          {loading ? (
-            <div className="text-center text-gray-500 dark:text-white/70 p-8">Cargando envíos...</div>
-          ) : filteredShipments.length === 0 ? (
+          {!filteredShipments.length ? (
             <div className="text-center text-gray-500 dark:text-white/70 p-8">No hay envíos registrados.</div>
           ) : (
             <Table>
@@ -496,7 +593,7 @@ export default function ShipmentTable() {
                   <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Pickup</TableCell>
                   <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Delivery</TableCell>
                   <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Remitente</TableCell>
-                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Descripción</TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Conductor</TableCell>
                   <TableCell isHeader className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400">Acciones</TableCell>
                 </TableRow>
               </TableHeader>
@@ -511,32 +608,28 @@ export default function ShipmentTable() {
                       </Badge>
                     </TableCell>
 
-                    {/* ✅ ahora muestra dirección si existe */}
-                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
-                      {originLabel(s)}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
-                      {destLabel(s)}
-                    </TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{originLabel(s)}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{destLabel(s)}</TableCell>
 
                     <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">{s.shipment_sender_name}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white max-w-[240px] truncate">{s.shipment_description}</TableCell>
+
+                    {/* 👤 Conductor */}
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
+                      {getDriverDisplay(s.shipment_driver ?? null)}
+                    </TableCell>
 
                     <TableCell className="px-5 py-3 text-start">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Ver Detalles */}
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openDetails(s)}
+                          onClick={() => { setIsDetailsOpen(true); setSelectedShipment(s); }}
                           aria-label="Ver detalles"
                           className="p-2"
                         >
                           <HiEye className="w-4 h-4" />
-                          <span className="sr-only">Ver detalles</span>
                         </Button>
 
-                        {/* ✅ acceso directo a Maps por fila */}
                         <a
                           target="_blank"
                           rel="noreferrer"
@@ -544,11 +637,9 @@ export default function ShipmentTable() {
                         >
                           <Button size="sm" variant="outline" className="p-2" aria-label="Ver en Maps">
                             <HiMap className="w-4 h-4" />
-                            <span className="sr-only">Maps</span>
                           </Button>
                         </a>
 
-                        {/* Eliminar */}
                         <Button
                           size="sm"
                           variant="outline"
@@ -557,7 +648,6 @@ export default function ShipmentTable() {
                           className="p-2"
                         >
                           <HiTrash className="w-4 h-4" />
-                          <span className="sr-only">Eliminar</span>
                         </Button>
                       </div>
                     </TableCell>
@@ -570,9 +660,7 @@ export default function ShipmentTable() {
 
         {/* Mobile */}
         <div className={`block md:hidden p-4 space-y-4 transition-opacity duration-500 ${fade ? "opacity-100" : "opacity-0"}`}>
-          {loading ? (
-            <div className="text-center text-gray-500 dark:text-white/70">Cargando envíos...</div>
-          ) : filteredShipments.length === 0 ? (
+          {!filteredShipments.length ? (
             <div className="text-center text-gray-500 dark:text-white/70">No hay envíos registrados.</div>
           ) : (
             filteredShipments.map((s) => (
@@ -585,7 +673,6 @@ export default function ShipmentTable() {
                   <Badge size="sm" color={badgeColor(s.shipment_status)}>{s.shipment_status}</Badge>
                 </div>
 
-                {/* ✅ dirección si existe */}
                 <p className="text-gray-700 dark:text-white text-sm mt-1">
                   <strong>Pickup:</strong> {originLabel(s)}
                 </p>
@@ -596,24 +683,22 @@ export default function ShipmentTable() {
                 <p className="text-gray-700 dark:text-white text-sm">
                   <strong>Remitente:</strong> {s.shipment_sender_name}
                 </p>
-                <p className="text-gray-700 dark:text-white text-sm leading-snug break-words">
-                  <strong>Descripción:</strong> {s.shipment_description}
+
+                <p className="text-gray-700 dark:text-white text-sm">
+                  <strong>Conductor:</strong> {getDriverDisplay(s.shipment_driver ?? null)}
                 </p>
 
                 <div className="mt-3 flex gap-2">
-                  {/* Ver Detalles */}
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => openDetails(s)}
+                    onClick={() => { setIsDetailsOpen(true); setSelectedShipment(s); }}
                     aria-label="Ver detalles"
                     className="p-2 flex-1"
                   >
                     <HiEye className="w-4 h-4" />
-                    <span className="sr-only">Ver detalles</span>
                   </Button>
 
-                  {/* ✅ Maps directo */}
                   <a
                     className="flex-1"
                     target="_blank"
@@ -622,11 +707,9 @@ export default function ShipmentTable() {
                   >
                     <Button size="sm" variant="outline" className="p-2 w-full">
                       <HiMap className="w-4 h-4" />
-                      <span className="sr-only">Maps</span>
                     </Button>
                   </a>
 
-                  {/* Eliminar */}
                   <Button
                     size="sm"
                     variant="outline"
@@ -635,7 +718,6 @@ export default function ShipmentTable() {
                     className="p-2"
                   >
                     <HiTrash className="w-4 h-4" />
-                    <span className="sr-only">Eliminar</span>
                   </Button>
                 </div>
               </div>
@@ -647,10 +729,11 @@ export default function ShipmentTable() {
       {/* Modal Detalles */}
       <ShipmentDetailsModal
         open={isDetailsOpen}
-        getUserDisplay={getUserDisplay}
-        onClose={closeDetails}
+        onClose={() => { setIsDetailsOpen(false); setSelectedShipment(null); }}
         shipment={selectedShipment}
         getProvinceName={(id) => provinces[Number(id)] || "Desconocido"}
+        getUserDisplay={(uid) => usersMap[uid] || `Usuario ${uid}`}
+        getDriverDisplay={(did) => (did ? (driversMap[did] || `Driver ${did}`) : "—")}
         onDeleteShipment={deleteShipment}
       />
     </>
