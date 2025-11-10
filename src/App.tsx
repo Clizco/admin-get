@@ -69,7 +69,7 @@ export default function App() {
             <Route path="/calculator" element={<Calculator />} />
             <Route path="/drivers" element={<DriverTable />} />
             <Route path="/users" element={<UserTable />} />
-            <Route path="/users/:id" element={<UserDetail />} />
+            <Route path="/users/edit/:id" element={<UserDetail />} />
             <Route path="/packages/edit/:id" element={<UpdatePackage />} />
             <Route path="/points" element={<PointsTable />} />
             <Route path="/drivers/edit/:id" element={<UpdateDriver />} />
