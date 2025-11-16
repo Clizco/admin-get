@@ -33,6 +33,10 @@ export default function UserDetail() {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 🔐 estados para cambio de contraseña
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   // Si hay id, estamos editando => bloquear user_prefix
   const isEditing = Boolean(id);
   const isPrefixLocked = isEditing; // "no se puede editar una vez creado"
@@ -69,11 +73,28 @@ export default function UserDetail() {
     try {
       if (!user) return;
 
+      // 🧠 Validación de contraseña SOLO si el admin escribe algo
+      if (password || confirmPassword) {
+        if (password.length < 6) {
+          toast.error('La contraseña debe tener al menos 6 caracteres');
+          return;
+        }
+        if (password !== confirmPassword) {
+          toast.error('Las contraseñas no coinciden');
+          return;
+        }
+      }
+
       // Evitar enviar user_prefix si está bloqueado (defensa extra)
-      const payload: Partial<User> = { ...user };
+      const payload: any = { ...user };
+
       if (isPrefixLocked) {
-        // no mandamos user_prefix para que el backend no lo toque
-        delete (payload as any).user_prefix;
+        delete payload.user_prefix;
+      }
+
+      // Si el admin escribió una nueva contraseña, la mandamos
+      if (password.trim() !== '') {
+        payload.user_password = password; // el backend la debe hashear
       }
 
       await axios.put(`${apiUrl}/users/users/update/${id}`, payload);
@@ -96,7 +117,7 @@ export default function UserDetail() {
       console.error('Error al eliminar usuario:', error);
       toast.error('No se pudo eliminar el usuario');
     }
-  }
+  };
 
   if (loading || !user) {
     return <div className="p-6 text-gray-500 dark:text-white/70">Cargando datos del usuario...</div>;
@@ -133,7 +154,7 @@ export default function UserDetail() {
           onChange={(e) => handleChange('user_phonenumber', e.target.value)}
         />
 
-        {/* CÓDIGO DE GET (user_prefix) BLOQUEADO SI ES EDICIÓN */}
+        {/* 🔐 CÓDIGO DE GET (user_prefix) BLOQUEADO SI ES EDICIÓN */}
         <div>
           <div className="flex items-center justify-between">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -160,6 +181,27 @@ export default function UserDetail() {
             </p>
           )}
         </div>
+
+        {/* 🔑 Cambio de contraseña opcional para admin */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Nueva contraseña (opcional)"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Dejar en blanco para no cambiar"
+          />
+          <Input
+            label="Confirmar nueva contraseña"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repite la nueva contraseña"
+          />
+        </div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-white/60">
+          Si dejas los campos de contraseña vacíos, la contraseña actual se mantendrá.
+        </p>
 
         <Select
           label="Provincia"
