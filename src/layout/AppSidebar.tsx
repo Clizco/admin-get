@@ -7,7 +7,9 @@ import {
   CarFront,
   Users,
   Calculator,
+  BadgeDollarSign,
   MoreHorizontal,
+
 } from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 
@@ -23,9 +25,11 @@ const navItems: NavItem[] = [
   { icon: <Package />, name: "Paquetes", path: "/packages" },
   { icon: <Send />, name: "Envíos", path: "/shipments" },
   { icon: <CarFront />, name: "Conductores", path: "/drivers" },
+  {icon: <BadgeDollarSign />, name: "Tarifas", path: "/rates" },
   { icon: <Users />, name: "Usuarios", path: "/users" },
   { icon: <Calculator />, name: "Calculadora", path: "/calculator" },
   { icon: <MoreHorizontal />, name: "Puntos", path: "/points" },
+  
 ];
 
 const AppSidebar: React.FC = () => {
