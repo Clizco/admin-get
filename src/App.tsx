@@ -33,6 +33,7 @@ import UpdatePackage from "./pages/Packages/UpdatePackage/UpdatePackage";
 import PointsTable from "./pages/Points/PointsTable";
 import UpdateDriver from "./pages/Drivers/UpdateDriver/UpdateDriver";
 import RateTable from "./pages/Rates/RateTable";
+import TransactionTable from "./pages/Transactions/TransactionTable";
 
 export default function App() {
   return (
@@ -75,7 +76,7 @@ export default function App() {
             <Route path="/points" element={<PointsTable />} />
             <Route path="/drivers/edit/:id" element={<UpdateDriver />} />
             <Route path="/rates" element={<RateTable />} />
-           
+            <Route path="/transactions" element={<TransactionTable />} />
             
 
             {/* Rutas de error */}

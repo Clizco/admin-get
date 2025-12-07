@@ -23,6 +23,8 @@ interface User {
   user_prefix: string
   user_province: number
   role_id: number
+  // Campo opcional de última actividad (timestamp desde la BD)
+  last_activity?: string
 }
 
 interface Province {
@@ -31,6 +33,30 @@ interface Province {
 }
 
 const apiUrl = import.meta.env.VITE_API_URL || ''
+
+// 🕒 Formatear la última actividad: "06/12/2025 02:35 PM"
+const formatLastActivity = (raw?: string): string => {
+  if (!raw) return "Sin actividad"
+
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return "Sin actividad"
+
+  const dia = String(date.getDate()).padStart(2, "0")
+  const mes = String(date.getMonth() + 1).padStart(2, "0")
+  const ano = date.getFullYear()
+
+  let horas = date.getHours()
+  const minutos = String(date.getMinutes()).padStart(2, "0")
+
+  const ampm = horas >= 12 ? "PM" : "AM"
+  horas = horas % 12
+  if (horas === 0) horas = 12 // convertir 00 → 12
+
+  const horasStr = String(horas).padStart(2, "0")
+
+  return `${dia}/${mes}/${ano} ${horasStr}:${minutos} ${ampm}`
+}
+
 
 export default function UserTable() {
   const [users, setUsers] = useState<User[]>([])
@@ -169,42 +195,39 @@ export default function UserTable() {
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
-                >
-                  Nombre
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
-                >
-                  Email
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
-                >
-                  Teléfono
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
-                >
-                  Provincia
-                </TableCell>
+                {/* Prefijo ahora PRIMERA columna */}
                 <TableCell
                   isHeader
                   className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Prefijo
                 </TableCell>
+
+                {/* Nombre */}
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+                >
+                  Nombre
+                </TableCell>
+
+                {/* Nueva columna Última actividad (antes de Rol) */}
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+                >
+                  Última actividad
+                </TableCell>
+
+                {/* Rol */}
                 <TableCell
                   isHeader
                   className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
                 >
                   Rol
                 </TableCell>
+
+                {/* Acciones */}
                 <TableCell
                   isHeader
                   className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
@@ -213,34 +236,38 @@ export default function UserTable() {
                 </TableCell>
               </TableRow>
             </TableHeader>
+
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {filteredUsers.map((user) => {
                 const rb = roleBadge(user.role_id)
                 return (
                   <TableRow key={user.id}>
-                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
-                      {user.user_firstname} {user.user_lastname}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
-                      {user.user_email}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
-                      {user.user_phonenumber}
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
-                      {getProvinceName(user.user_province)}
-                    </TableCell>
+                    {/* Prefijo - primera columna */}
                     <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                       {user.user_prefix}
                     </TableCell>
+
+                    {/* Nombre */}
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
+                      {user.user_firstname} {user.user_lastname}
+                    </TableCell>
+
+                    {/* Última actividad formateada */}
+                    <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
+                      {formatLastActivity(user.last_activity)}
+                    </TableCell>
+
+                    {/* Rol */}
                     <TableCell className="px-5 py-3">
                       <Badge size="sm" color={rb.color}>
                         {rb.label}
                       </Badge>
                     </TableCell>
+
+                    {/* Acciones */}
                     <TableCell className="px-5 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Ojo para editar */}
+                        {/* Ver / Editar */}
                         <Button
                           size="sm"
                           variant="outline"
@@ -288,7 +315,7 @@ export default function UserTable() {
                 key={user.id}
                 className="relative bg-white dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm space-y-1"
               >
-                {/* ICONOS SUPERIORES: Trash a la IZQUIERDA y Ojo a la derecha */}
+                {/* ICONOS SUPERIORES: Trash y Ojo */}
                 <div className="absolute right-4 top-4 flex items-center gap-3">
                   <HiTrash
                     className="w-5 h-5 text-gray-400 hover:text-blue-500 cursor-pointer"
@@ -318,8 +345,12 @@ export default function UserTable() {
                   <strong>Provincia:</strong>{' '}
                   {getProvinceName(user.user_province)}
                 </p>
-                <p className="text-sm text-gray-700 dark:text-white">
+                <p className="text-sm text-gray-700 dark:text:white">
                   <strong>Prefijo:</strong> {user.user_prefix}
+                </p>
+                <p className="text-sm text-gray-700 dark:text-white">
+                  <strong>Última actividad:</strong>{' '}
+                  {formatLastActivity(user.last_activity)}
                 </p>
                 <p className="text-sm text-gray-700 dark:text-white">
                   <strong>Rol:</strong>{' '}

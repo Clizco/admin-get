@@ -6,7 +6,6 @@ import {
   Send,
   CarFront,
   Users,
-  Calculator,
   BadgeDollarSign,
   MoreHorizontal,
 
@@ -27,7 +26,7 @@ const navItems: NavItem[] = [
   { icon: <CarFront />, name: "Conductores", path: "/drivers" },
   {icon: <BadgeDollarSign />, name: "Tarifas", path: "/rates" },
   { icon: <Users />, name: "Usuarios", path: "/users" },
-  { icon: <Calculator />, name: "Calculadora", path: "/calculator" },
+  { icon: <BadgeDollarSign />, name: "Transacciones", path: "/transactions" },
   { icon: <MoreHorizontal />, name: "Puntos", path: "/points" },
   
 ];
