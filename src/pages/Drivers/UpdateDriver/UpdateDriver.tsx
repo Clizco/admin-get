@@ -18,6 +18,7 @@ type Driver = {
   driver_email: string
   driver_province: number
   role_id: number
+  vehicle_type: string   // 🆕 tipo de vehículo
   created_at?: string
   updated_at?: string
 }
@@ -37,6 +38,7 @@ export default function UpdateDriver() {
     driver_email: '',
     driver_province: 0,
     role_id: 0,
+    vehicle_type: 'moto', // 🆕 default
   })
 
   useEffect(() => {
@@ -58,6 +60,7 @@ export default function UpdateDriver() {
           driver_email: d.driver_email ?? '',
           driver_province: Number(d.driver_province) ?? 0,
           role_id: Number(d.role_id) ?? 0,
+          vehicle_type: d.vehicle_type ?? 'moto', // 🆕 si viene null, caemos en 'moto'
         })
 
         // 2) Cargar provincias
@@ -79,7 +82,10 @@ export default function UpdateDriver() {
     (field: keyof Driver) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const value =
-        field === 'driver_province' || field === 'role_id' ? Number(e.target.value) : e.target.value
+        field === 'driver_province' || field === 'role_id'
+          ? Number(e.target.value)
+          : e.target.value
+
       setForm((prev) => ({ ...prev, [field]: value as any }))
     }
 
@@ -87,11 +93,11 @@ export default function UpdateDriver() {
     if (!form.driver_name.trim()) return 'El nombre es obligatorio'
     if (!form.driver_lastname.trim()) return 'El apellido es obligatorio'
     if (!form.driver_email.trim()) return 'El correo es obligatorio'
-    // patrón simple de email
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.driver_email)
     if (!emailOk) return 'El correo no es válido'
     if (!form.driver_phonenumber.trim()) return 'El teléfono es obligatorio'
     if (!form.driver_province) return 'La provincia es obligatoria'
+    if (!form.vehicle_type.trim()) return 'El tipo de vehículo es obligatorio'
     return null
   }
 
@@ -113,22 +119,28 @@ export default function UpdateDriver() {
         driver_phonenumber: form.driver_phonenumber.trim(),
         driver_email: form.driver_email.trim(),
         driver_province: Number(form.driver_province),
-        // Si NO quieres permitir cambiar rol desde aquí, comenta la siguiente línea:
-        //role_id: Number(form.role_id),
+        vehicle_type: form.vehicle_type, // 🆕 mandamos el tipo de vehículo
+        // Si NO quieres permitir cambiar rol desde aquí, sigue comentado:
+        // role_id: Number(form.role_id),
       }
 
-      await axios.put(`${apiUrl}/drivers/drivers/update/${driverId}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      await axios.put(
+        `${apiUrl}/drivers/driver/update/${driverId}`,
+        payload,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
 
       alert('¡Conductor actualizado!')
       navigate('/drivers') // Ajusta a tu ruta de listado de conductores
     } catch (error: any) {
       console.error('Error al actualizar conductor:', error)
-      // Mensajes comunes por unique constraints
       const msg =
         error?.response?.data?.message ||
-        (String(error).includes('duplicate') ? 'Email o teléfono ya están en uso' : null) ||
+        (String(error).includes('duplicate')
+          ? 'Email o teléfono ya están en uso'
+          : null) ||
         'Ocurrió un error al actualizar el conductor'
       alert(msg)
     }
@@ -216,6 +228,21 @@ export default function UpdateDriver() {
                 {p.province_name}
               </option>
             ))}
+          </select>
+        </div>
+
+        {/* 🆕 Tipo de vehículo */}
+        <div>
+          <Label>Tipo de vehículo</Label>
+          <select
+            value={form.vehicle_type}
+            onChange={handleChange('vehicle_type')}
+            className="border rounded px-4 py-2 w-full dark:bg-gray-700 dark:text-white"
+          >
+            <option value="moto">Moto</option>
+            <option value="auto">Auto</option>
+            <option value="bici">Bicicleta</option>
+            <option value="pickup">Pickup</option>
           </select>
         </div>
 

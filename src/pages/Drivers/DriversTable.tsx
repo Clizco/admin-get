@@ -1,45 +1,47 @@
-import { useEffect, useState, ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useEffect, useState, ChangeEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import {
   Table,
   TableBody,
   TableCell,
   TableHeader,
   TableRow,
-} from '../../components/ui/table';
-import Button from '../../components/ui/button/Button';
-import Select from '../../components/form/Select';
-import { HiPencil, HiTrash } from 'react-icons/hi';
+} from '../../components/ui/table'
+import Button from '../../components/ui/button/Button'
+import Select from '../../components/form/Select'
+import { HiPencil, HiTrash } from 'react-icons/hi'
 
 interface Driver {
-  id: number;
-  driver_name: string;
-  driver_phonenumber: string;
-  driver_email: string;
-  driver_province: number;
-  created_at: string;
+  id: number
+  driver_name: string
+  driver_phonenumber: string
+  driver_email: string
+  driver_province: number
+  created_at: string
+  vehicle_type: string // 🆕 tipo de vehículo (moto, auto, etc)
 }
 
 interface Province {
-  id: number;
-  province_name: string;
+  id: number
+  province_name: string
 }
 
-const apiUrl = import.meta.env.VITE_API_URL || '';
-const driversUrl = `${apiUrl}/drivers/drivers/all`;
-const provincesUrl = `${apiUrl}/provinces/provinces/all`;
+const apiUrl = import.meta.env.VITE_API_URL || ''
+const driversUrl = `${apiUrl}/drivers/drivers/all`
+const provincesUrl = `${apiUrl}/provinces/provinces/all`
 
 export default function DriverTable() {
-  const navigate = useNavigate();
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [fade, setFade] = useState(false);
+  const navigate = useNavigate()
+  const [drivers, setDrivers] = useState<Driver[]>([])
+  const [provinces, setProvinces] = useState<Province[]>([])
+  const [fade, setFade] = useState(false)
 
   // filtros
-  const [searchText, setSearchText] = useState<string>('');
-  const [selectedProvince, setSelectedProvince] = useState<string>('Todas');
-  const [selectedDate] = useState<string>(''); // yyyy-mm-dd
+  const [searchText, setSearchText] = useState<string>('')
+  const [selectedProvince, setSelectedProvince] = useState<string>('Todas')
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('Todos')
+  const [selectedDate] = useState<string>('') // reservado si luego quieres filtro por fecha
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,56 +49,71 @@ export default function DriverTable() {
         const [driversRes, provincesRes] = await Promise.all([
           axios.get<Driver[]>(driversUrl),
           axios.get<Province[]>(provincesUrl),
-        ]);
-        setDrivers(driversRes.data);
-        setProvinces(provincesRes.data);
-        setTimeout(() => setFade(true), 50);
+        ])
+        setDrivers(driversRes.data)
+        setProvinces(provincesRes.data)
+        setTimeout(() => setFade(true), 50)
       } catch (error) {
-        console.error('Error fetching drivers or provinces:', error);
+        console.error('Error fetching drivers or provinces:', error)
       }
-    };
+    }
 
-    setFade(false);
-    fetchData();
-  }, []);
+    setFade(false)
+    fetchData()
+  }, [])
 
   const getProvinceName = (id: number) =>
-    provinces.find((p) => p.id === id)?.province_name || 'Desconocido';
+    provinces.find((p) => p.id === id)?.province_name || 'Desconocido'
 
   const handleDelete = async (driverId: number) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este conductor?')) return;
+    if (!confirm('¿Estás seguro de que deseas eliminar este conductor?')) return
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token')
       await axios.delete(`${apiUrl}/drivers/drivers/delete/${driverId}`, {
         headers: { Authorization: `Bearer ${token}` },
-      });
-      setDrivers((prev) => prev.filter((driver) => driver.id !== driverId));
+      })
+      setDrivers((prev) => prev.filter((driver) => driver.id !== driverId))
     } catch (error) {
-      console.error('Error deleting driver:', error);
+      console.error('Error deleting driver:', error)
     }
-  };
+  }
 
   const handleEdit = (driverId: number) => {
-    navigate(`/drivers/edit/${driverId}`);
-  };
+    navigate(`/drivers/edit/${driverId}`)
+  }
+
+  // construir lista de tipos de vehículo únicos para el filtro
+  const vehicleTypeOptions = [
+    'Todos',
+    ...Array.from(new Set(drivers.map((d) => d.vehicle_type))).sort(),
+  ]
 
   // aplicar filtros en memoria
   const filteredDrivers = drivers.filter((driver) => {
     const matchesSearch =
       driver.driver_name.toLowerCase().includes(searchText.toLowerCase()) ||
       driver.driver_email.toLowerCase().includes(searchText.toLowerCase()) ||
-      driver.driver_phonenumber.toLowerCase().includes(searchText.toLowerCase());
+      driver.driver_phonenumber.toLowerCase().includes(searchText.toLowerCase())
 
     const matchesProvince =
       selectedProvince === 'Todas' ||
-      getProvinceName(driver.driver_province) === selectedProvince;
+      getProvinceName(driver.driver_province) === selectedProvince
+
+    const matchesVehicleType =
+      vehicleTypeFilter === 'Todos' ||
+      driver.vehicle_type === vehicleTypeFilter
 
     const matchesDate =
       !selectedDate ||
-      new Date(driver.created_at).toISOString().slice(0, 10) === selectedDate;
+      new Date(driver.created_at).toISOString().slice(0, 10) === selectedDate
 
-    return matchesSearch && matchesProvince && matchesDate;
-  });
+    return (
+      matchesSearch &&
+      matchesProvince &&
+      matchesVehicleType &&
+      matchesDate
+    )
+  })
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -137,14 +154,23 @@ export default function DriverTable() {
           />
         </div>
 
-        {/* Slot libre futuro */}
+        {/* Filtro por tipo de vehículo */}
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-            &nbsp;
+            Tipo de vehículo
           </label>
-          <div className="text-gray-500 text-sm dark:text-white/40">
-            {/* Aquí puedes poner un datepicker o un botón "Agregar Conductor" */}
-          </div>
+          <Select
+            className="w-full p-2 border rounded-md dark:bg-white/[0.02] dark:text-white"
+            value={vehicleTypeFilter}
+            onChange={(value: string) => setVehicleTypeFilter(value)}
+            options={vehicleTypeOptions.map((value) => ({
+              value,
+              label:
+                value === 'Todos'
+                  ? 'Todos'
+                  : value.charAt(0).toUpperCase() + value.slice(1),
+            }))}
+          />
         </div>
       </div>
 
@@ -186,6 +212,13 @@ export default function DriverTable() {
                 >
                   Provincia
                 </TableCell>
+                {/* 🆕 Tipo de vehículo */}
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+                >
+                  Tipo de vehículo
+                </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
@@ -215,6 +248,10 @@ export default function DriverTable() {
                   </TableCell>
                   <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                     {getProvinceName(driver.driver_province)}
+                  </TableCell>
+                  {/* 🆕 Tipo de vehículo */}
+                  <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
+                    {driver.vehicle_type}
                   </TableCell>
                   <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-white">
                     {new Date(driver.created_at).toLocaleDateString('es-ES', {
@@ -286,6 +323,9 @@ export default function DriverTable() {
                 <strong>Provincia:</strong> {getProvinceName(driver.driver_province)}
               </p>
               <p className="text-sm text-gray-700 dark:text-white">
+                <strong>Vehículo:</strong> {driver.vehicle_type}
+              </p>
+              <p className="text-sm text-gray-700 dark:text-white">
                 <strong>Fecha:</strong>{' '}
                 {new Date(driver.created_at).toLocaleDateString('es-ES', {
                   day: '2-digit',
@@ -324,5 +364,5 @@ export default function DriverTable() {
         )}
       </div>
     </div>
-  );
+  )
 }

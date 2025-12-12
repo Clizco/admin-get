@@ -7,6 +7,7 @@ import {
   CarFront,
   Users,
   BadgeDollarSign,
+  BanknoteArrowUp,
   MoreHorizontal,
 
 } from "lucide-react";
@@ -26,7 +27,7 @@ const navItems: NavItem[] = [
   { icon: <CarFront />, name: "Conductores", path: "/drivers" },
   {icon: <BadgeDollarSign />, name: "Tarifas", path: "/rates" },
   { icon: <Users />, name: "Usuarios", path: "/users" },
-  { icon: <BadgeDollarSign />, name: "Transacciones", path: "/transactions" },
+  { icon: <BanknoteArrowUp />, name: "Transacciones", path: "/transactions" },
   { icon: <MoreHorizontal />, name: "Puntos", path: "/points" },
   
 ];

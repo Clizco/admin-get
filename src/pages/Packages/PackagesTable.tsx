@@ -14,12 +14,11 @@ import { useNavigate } from "react-router-dom"
 import { HiTrash, HiPencil, HiChevronUp, HiChevronDown } from "react-icons/hi"
 import Select from "../../components/form/Select"
 
-// === IMPORTS NUEVOS ===
+// === IMPORTS NUEVOS (HISTORIAL + REALTIME) ===
 import { usePackageRealtime } from "../../hooks/usePackageRealtime"
 import Modal from "../../components/Modal"
 import PackageTimeline from "../../components/PackageTimeline"
 
-// === INTERFACES ORIGINALES ===
 interface Product {
   id: number
   product_weight: string
@@ -43,7 +42,7 @@ interface Package {
   user_fullname: string
 }
 
-type SortKey = "created_at" | "user_fullname" | "status_name"
+type SortKey = "created_at" | "user_fullname"
 type SortDirection = "asc" | "desc"
 
 const apiUrl = import.meta.env.VITE_API_URL || ""
@@ -81,13 +80,13 @@ export default function PackageTableAdmin() {
   const [search, setSearch] = useState<string>("")
   const navigate = useNavigate()
 
-  // === NUEVO: Estado del modal de historial ===
+  // --- Ordenamiento ---
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+
+  // --- Historial (modal) ---
   const [openTimeline, setOpenTimeline] = useState(false)
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null)
-
-  // === Ordenamiento ===
-  const [sortKey, setSortKey] = useState<SortKey>("created_at")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
   const fetchPackages = async () => {
     try {
@@ -119,7 +118,10 @@ export default function PackageTableAdmin() {
 
   const handleDelete = async (packageId: number) => {
     const pkg = packages.find((p) => p.id === packageId)
-    const label = pkg?.package_tracking_id ? ` (${pkg.package_tracking_id})` : ""
+    const label = pkg?.package_tracking_id
+      ? ` (${pkg.package_tracking_id})`
+      : ""
+
     const confirmed = window.confirm(
       `¿Estás seguro de que quieres eliminar este paquete${label}?`
     )
@@ -143,51 +145,48 @@ export default function PackageTableAdmin() {
     fetchStatuses()
   }, [])
 
-  // === REALTIME: Se refresca la tabla sola cuando cambia un paquete ===
+  // 🔴 REALTIME: se refresca sola la tabla cuando cambie un paquete
   usePackageRealtime(() => {
     console.log("📡 Actualización recibida → Refrescando paquetes")
     fetchPackages()
   })
 
   const filteredPackages = useMemo(() => {
-    const f = filter.toLowerCase()
-    const s = search.toLowerCase()
-
     return packages.filter((pkg) => {
       const matchesStatus =
         selectedStatus === "Todos" || pkg.status_name === selectedStatus
-
       const matchesSearch = pkg.package_tracking_id
         .toLowerCase()
-        .includes(s)
-
+        .includes(search.toLowerCase())
       const matchesFilter =
-        pkg.user_fullname.toLowerCase().includes(f) ||
-        pkg.user_email.toLowerCase().includes(f) ||
-        (pkg.user_prefix || "").toLowerCase().includes(f)
+        pkg.user_fullname.toLowerCase().includes(filter.toLowerCase()) ||
+        pkg.user_email.toLowerCase().includes(filter.toLowerCase()) ||
+        (pkg.user_prefix || "").toLowerCase().includes(filter.toLowerCase())
 
       return matchesStatus && matchesSearch && matchesFilter
     })
   }, [packages, selectedStatus, search, filter])
 
   const sortedPackages = useMemo(() => {
-    return [...filteredPackages].sort((a, b) => {
+    if (!sortKey) return filteredPackages
+
+    const sorted = [...filteredPackages].sort((a, b) => {
       if (sortKey === "created_at") {
         const at = new Date(a.created_at).getTime()
         const bt = new Date(b.created_at).getTime()
         return sortDirection === "asc" ? at - bt : bt - at
       }
-      if (sortKey === "user_fullname") {
-        return sortDirection === "asc"
-          ? a.user_fullname.localeCompare(b.user_fullname)
-          : b.user_fullname.localeCompare(a.user_fullname)
-      }
-      const sa = a.status_name ?? ""
-      const sb = b.status_name ?? ""
+      // user_fullname
       return sortDirection === "asc"
-        ? sa.localeCompare(sb)
-        : sb.localeCompare(sa)
+        ? a.user_fullname.localeCompare(b.user_fullname, "es", {
+            sensitivity: "base",
+          })
+        : b.user_fullname.localeCompare(a.user_fullname, "es", {
+            sensitivity: "base",
+          })
     })
+
+    return sorted
   }, [filteredPackages, sortKey, sortDirection])
 
   const handleSortToggle = (key: SortKey) => {
@@ -195,7 +194,7 @@ export default function PackageTableAdmin() {
       setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
     } else {
       setSortKey(key)
-      setSortDirection(key === "created_at" ? "desc" : "asc")
+      setSortDirection("asc")
     }
   }
 
@@ -209,11 +208,11 @@ export default function PackageTableAdmin() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:bg-white/[0.03]">
+    <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
       {/* Filtros */}
       <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block mb-1 text-sm text-gray-700 dark:text-gray-300">
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
             Filtrar por cliente o email
           </label>
           <input
@@ -223,100 +222,117 @@ export default function PackageTableAdmin() {
             onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setFilter(e.target.value)
             }
-            className="w-full p-2 border rounded-md dark:bg-gray-900 dark:text-white"
+            className="w-full p-2 border rounded-md dark:bg-gray-900 dark:border-white/[0.1] dark:text-white"
           />
         </div>
-
         <div>
-          <label className="block mb-1 text-sm text-gray-700 dark:text-gray-300">
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
             Buscar por Tracking ID
           </label>
           <input
             type="text"
             placeholder="Ej: 123ABC456"
+            className="w-full p-2 border rounded-md dark:bg-white/[0.02] dark:text-white"
             value={search}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              setSearch(e.target.value)
-            }
-            className="w-full p-2 border rounded-md dark:text-white dark:bg-neutral-900"
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-
         <div>
-          <label className="block mb-1 text-sm text-gray-700 dark:text-gray-300">
+          <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
             Filtrar por estado
           </label>
           <Select
-            className="w-full p-2 border rounded-md dark:bg-neutral-900 dark:text-white"
+            className="w-full p-2 border rounded-md dark:bg-white/[0.02] dark:text-white"
             value={selectedStatus}
             onChange={(value) => setSelectedStatus(value)}
-            options={statuses.map((s) => ({ value: s, label: s }))}
+            options={statuses.map((status) => ({
+              value: status,
+              label: status,
+            }))}
           />
         </div>
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden md:block max-w-full overflow-x-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
             <TableRow>
-              <TableCell isHeader>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+              >
                 <button
+                  type="button"
                   onClick={() => handleSortToggle("created_at")}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                  title="Ordenar por fecha de creación"
                 >
-                  Creado <SortIndicator active={sortKey === "created_at"} />
+                  Creado
+                  <SortIndicator active={sortKey === "created_at"} />
                 </button>
               </TableCell>
-
-              <TableCell isHeader>Tracking</TableCell>
-
-              <TableCell isHeader>
-                <button
-                  onClick={() => handleSortToggle("status_name")}
-                  className="flex items-center gap-1"
-                >
-                  Estado <SortIndicator active={sortKey === "status_name"} />
-                </button>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+              >
+                Tracking
               </TableCell>
-
-              <TableCell isHeader>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+              >
+                Estado
+              </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+              >
                 <button
+                  type="button"
                   onClick={() => handleSortToggle("user_fullname")}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                  title="Ordenar por cliente"
                 >
-                  Cliente <SortIndicator active={sortKey === "user_fullname"} />
+                  Cliente
+                  <SortIndicator active={sortKey === "user_fullname"} />
                 </button>
               </TableCell>
-
-              <TableCell isHeader>Acciones</TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-sm text-gray-500 font-medium dark:text-gray-400"
+              >
+                Acciones
+              </TableCell>
             </TableRow>
           </TableHeader>
 
-          <TableBody>
+          <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {sortedPackages.map((pkg) => (
               <TableRow key={pkg.id}>
-                <TableCell>{formatDate(pkg.created_at)}</TableCell>
-                <TableCell className="text-blue-600">
+                <TableCell className="px-5 py-3 text-sm text-gray-500 dark:text-gray-300">
+                  {formatDate(pkg.created_at)}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-blue-600 dark:text-blue-400 font-medium">
                   {pkg.package_tracking_id}
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-5 py-3 text-sm text-gray-500 dark:text-gray-300">
                   <Badge size="sm" color={getStatusColor(pkg.status_name)}>
                     {pkg.status_name}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-gray-200">
                   <button
-                    className="text-blue-600 hover:underline"
                     onClick={() => navigate(`/users/${pkg.user_id}`)}
+                    className="text-blue-600 hover:underline dark:text-blue-400"
                   >
                     {pkg.user_fullname}
                   </button>
                 </TableCell>
 
-                <TableCell>
-                  <div className="flex gap-2 flex-wrap">
-                    {/* Nueva acción: Ver Historial */}
+                <TableCell className="px-5 py-3 text-start">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Historial */}
                     <Button
                       size="sm"
                       variant="outline"
@@ -328,24 +344,28 @@ export default function PackageTableAdmin() {
                       Historial
                     </Button>
 
-                    {/* Edit */}
+                    {/* Edit (ícono) */}
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleEdit(pkg.id)}
+                      aria-label="Editar"
                       className="p-2"
                     >
                       <HiPencil className="w-4 h-4" />
+                      <span className="sr-only">Editar</span>
                     </Button>
 
-                    {/* Delete */}
+                    {/* Delete (ícono) */}
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleDelete(pkg.id)}
+                      aria-label="Eliminar"
                       className="p-2"
                     >
                       <HiTrash className="w-4 h-4" />
+                      <span className="sr-only">Eliminar</span>
                     </Button>
                   </div>
                 </TableCell>
@@ -355,37 +375,85 @@ export default function PackageTableAdmin() {
         </Table>
       </div>
 
-      {/* MOBILE CARDS */}
+      {/* --- MOBILE: barra de orden + cards --- */}
+      <div className="md:hidden px-4 pt-2 pb-3 sticky top-0 bg-white/90 dark:bg-black/50 backdrop-blur z-10">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleSortToggle("created_at")}
+            className={`flex-1 text-sm px-3 py-2 rounded-md border transition
+              ${
+                sortKey === "created_at"
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200"
+              }`}
+            title="Ordenar por Fecha"
+          >
+            Fecha{" "}
+            {sortKey === "created_at" &&
+              (sortDirection === "asc" ? "↑" : "↓")}
+          </button>
+
+          <button
+            onClick={() => handleSortToggle("user_fullname")}
+            className={`flex-1 text-sm px-3 py-2 rounded-md border transition
+              ${
+                sortKey === "user_fullname"
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200"
+              }`}
+            title="Ordenar por Cliente"
+          >
+            Cliente{" "}
+            {sortKey === "user_fullname" &&
+              (sortDirection === "asc" ? "↑" : "↓")}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Cards */}
       <div className="block md:hidden p-4 space-y-4">
         {sortedPackages.map((pkg) => (
           <div
             key={pkg.id}
-            className="bg-white dark:bg-neutral-900 border rounded-lg p-3 shadow"
+            className="bg-white dark:bg.white/5 border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 shadow-sm"
           >
-            <p>
+            <p
+              className="text-sm text-gray-600 dark:text-gray-300 active:opacity-70"
+              role="button"
+              title="Tocar para ordenar por fecha"
+              onClick={() => handleSortToggle("created_at")}
+            >
               <strong>Fecha:</strong> {formatDate(pkg.created_at)}
             </p>
-            <p>
+
+            <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
               <strong>Tracking:</strong> {pkg.package_tracking_id}
             </p>
-            <p>
+
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               <strong>Estado:</strong>{" "}
               <Badge size="sm" color={getStatusColor(pkg.status_name)}>
                 {pkg.status_name}
               </Badge>
             </p>
-            <p>
+
+            <p
+              className="text-sm text-gray-600 dark:text-gray-300 active:opacity-70"
+              role="button"
+              title="Tocar para ordenar por cliente"
+              onClick={() => handleSortToggle("user_fullname")}
+            >
               <strong>Cliente:</strong>{" "}
               <button
                 onClick={() => navigate(`/users/${pkg.user_id}`)}
-                className="text-blue-600 hover:underline"
+                className="text-blue-600 hover:underline dark:text-blue-400"
               >
                 {pkg.user_fullname}
               </button>
             </p>
 
-            <div className="flex gap-2 mt-3">
-              {/* Ver Historial */}
+            <div className="mt-3 flex gap-2 flex-wrap">
+              {/* Historial */}
               <Button
                 size="sm"
                 variant="outline"
@@ -397,37 +465,43 @@ export default function PackageTableAdmin() {
                 Historial
               </Button>
 
-              {/* Edit */}
+              {/* Edit (ícono) */}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleEdit(pkg.id)}
+                aria-label="Editar"
                 className="p-2"
               >
                 <HiPencil className="w-4 h-4" />
+                <span className="sr-only">Editar</span>
               </Button>
 
-              {/* Delete */}
+              {/* Delete (ícono) */}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleDelete(pkg.id)}
+                aria-label="Eliminar"
                 className="p-2"
               >
                 <HiTrash className="w-4 h-4" />
+                <span className="sr-only">Eliminar</span>
               </Button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* === MODAL DE TIMELINE === */}
+      {/* MODAL DE TIMELINE */}
       <Modal
         open={openTimeline}
         onClose={() => setOpenTimeline(false)}
         title="Historial del Paquete"
       >
-        {selectedPackageId && <PackageTimeline packageId={selectedPackageId} />}
+        {selectedPackageId && (
+          <PackageTimeline packageId={selectedPackageId} />
+        )}
       </Modal>
     </div>
   )
