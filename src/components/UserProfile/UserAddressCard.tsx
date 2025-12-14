@@ -165,7 +165,7 @@ export default function UserAddressCard() {
             <div className="px-2 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                 <div className="lg:col-span-2">
-                  <Label>Full Name</Label>
+                  <Label>Nombre</Label>
                   <Input
                     name="address_person_fullname"
                     type="text"
@@ -175,7 +175,7 @@ export default function UserAddressCard() {
                 </div>
 
                 <div>
-                  <Label>Phone Number</Label>
+                  <Label>Teléfono</Label>
                   <Input
                     name="address_phonenumber"
                     type="text"
@@ -185,7 +185,7 @@ export default function UserAddressCard() {
                 </div>
 
                 <div className="lg:col-span-2">
-                  <Label>Address Details</Label>
+                  <Label>Detalles de la Dirección</Label>
                   <Input
                     name="address_details"
                     type="text"
@@ -197,10 +197,10 @@ export default function UserAddressCard() {
             </div>
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button size="sm" variant="outline" onClick={closeModal}>
-                Close
+                Cerrar
               </Button>
               <Button size="sm" onClick={handleSave}>
-                Save Changes
+                Guardar Cambios
               </Button>
             </div>
           </form>

@@ -104,26 +104,26 @@ export default function UserMetaCard() {
             <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>First Name</Label>
+                  <Label>Nombre</Label>
                   <Input type="text" value={user?.user_firstname || ''} />
                 </div>
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Last Name</Label>
+                  <Label>Apellido</Label>
                   <Input type="text" value={user?.user_lastname || ''} />
                 </div>
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Email Address</Label>
+                  <Label>Correo Electrónico</Label>
                   <Input type="text" value={user?.user_email || ''} />
                 </div>
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Phone</Label>
+                  <Label>Teléfono</Label>
                   <Input type="text" value={user?.user_phonenumber || ''} />
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-              <Button size="sm" variant="outline" onClick={closeModal}>Close</Button>
-              <Button size="sm" onClick={handleSave}>Save Changes</Button>
+              <Button size="sm" variant="outline" onClick={closeModal}>Cerrar</Button>
+              <Button size="sm" onClick={handleSave}>Guardar Cambios</Button>
             </div>
           </form>
         </div>

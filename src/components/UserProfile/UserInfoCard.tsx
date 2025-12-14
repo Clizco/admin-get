@@ -40,7 +40,7 @@ export default function UserInfoCard() {
     () => getUser() as CommonUser | null
   )
   const [provinces, setProvinces] = useState<Province[]>([])
-  const [addresses, setAddresses] = useState<Address[]>([])
+  const [, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -197,27 +197,27 @@ export default function UserInfoCard() {
             }}
           >
             <div>
-              <Label>First Name</Label>
+              <Label>Nombre</Label>
               <Input
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
               />
             </div>
             <div>
-              <Label>Last Name</Label>
+              <Label>Apellido</Label>
               <Input
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
               />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>Correo Electrónico</Label>
               <div className="w-full border rounded p-2 bg-gray-100 text-gray-600 text-sm">
                 {user?.user_email || ""}
               </div>
             </div>
             <div>
-              <Label>Phone</Label>
+              <Label>Teléfono</Label>
               <Input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -234,21 +234,6 @@ export default function UserInfoCard() {
                 {provinces.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.province_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Dirección</Label>
-              <select
-                className="w-full border rounded p-2 text-sm bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              >
-                <option value="">Seleccionar dirección</option>
-                {addresses.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.address_name}
                   </option>
                 ))}
               </select>
