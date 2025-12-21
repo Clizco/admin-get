@@ -16,8 +16,8 @@ import Select from "../../components/form/Select"
 
 // === IMPORTS NUEVOS (HISTORIAL + REALTIME) ===
 import { usePackageRealtime } from "../../hooks/usePackageRealtime"
-import Modal from "../../components/Modal"
-import PackageTimeline from "../../components/PackageTimeline"
+import Modal from "../../components/Modals/Modal"
+import PackageTimeline from "../../components/Timelines/PackageTimeline"
 
 interface Product {
   id: number
